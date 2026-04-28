@@ -1,0 +1,86 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useMarketStore } from "@/store/market";
+import { fetchSentimentIndicator, SentimentIndicator, formatNumber, formatTime } from "@/lib/api";
+
+export function SentimentGaugePanel() {
+  const { currentSymbol, currentTimeframe } = useMarketStore();
+  const [data, setData] = useState<SentimentIndicator | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      const result = await fetchSentimentIndicator(currentSymbol, currentTimeframe || "H1");
+      if (!cancelled) {
+        setData(result);
+        setLoading(false);
+      }
+    };
+
+    load();
+    const interval = setInterval(load, 60000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [currentSymbol, currentTimeframe]);
+
+  const score = data?.fearGreedScore ?? 50;
+  const stroke = useMemo(() => {
+    if (score >= 70) return "#00FF41";
+    if (score >= 45) return "#00E5FF";
+    return "#FFB100";
+  }, [score]);
+
+  const radius = 42;
+  const circumference = 2 * Math.PI * radius;
+  const clampedScore = Math.max(0, Math.min(100, score));
+  const dashOffset = circumference - (clampedScore / 100) * circumference;
+
+  return (
+    <div className="flex flex-col h-full border border-terminal-positive/20 rounded bg-black/40 overflow-hidden">
+      <div className="px-3 py-2 border-b border-terminal-positive/20 bg-black/70">
+        <h3 className="text-xs font-bold text-terminal-accent tracking-wider">SENTIMENT GAUGE</h3>
+      </div>
+
+      <div className="flex-1 p-3 grid grid-cols-[110px_1fr] gap-3 items-center">
+        <div className="relative w-[100px] h-[100px] mx-auto">
+          <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+            <circle cx="50" cy="50" r={radius} stroke="rgba(255,255,255,0.12)" strokeWidth="10" fill="none" />
+            <circle
+              cx="50"
+              cy="50"
+              r={radius}
+              stroke={stroke}
+              strokeWidth="10"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={dashOffset}
+              fill="none"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center leading-tight">
+            <div className="text-xl font-bold" style={{ color: stroke }}>{formatNumber(clampedScore, 0)}</div>
+            <div className="text-[10px] text-terminal-muted">Fear/Greed</div>
+          </div>
+        </div>
+
+        <div className="text-[11px] space-y-1 font-mono">
+          <div className="text-terminal-positive font-bold">{data?.symbolCode ?? currentSymbol} · {data?.timeFrame ?? currentTimeframe}</div>
+          <div className="text-terminal-muted">Trend: <span className="text-terminal-accent">{data?.trend ?? (loading ? "Loading..." : "--")}</span></div>
+          <div className="text-terminal-muted">Sentiment: <span className="text-terminal-accent">{data?.sentiment ?? "--"}</span></div>
+          <div className="text-terminal-muted">RSI: <span className="text-terminal-positive">{data ? formatNumber(data.rsi, 2) : "--"}</span></div>
+          <div className="text-terminal-muted">MACD Hist: <span className="text-terminal-positive">{data ? formatNumber(data.macdHistogram, 6) : "--"}</span></div>
+          <div className="text-terminal-muted">EMA50/100: <span className="text-terminal-positive">{data ? `${formatNumber(data.ema50, 4)} / ${formatNumber(data.ema100, 4)}` : "--"}</span></div>
+          <div className="text-terminal-muted">Close: <span className="text-terminal-positive">{data ? formatNumber(data.currentClose, 4) : "--"}</span></div>
+          <div className="text-terminal-muted">At: <span className="text-terminal-positive">{data?.calculatedAt ? formatTime(data.calculatedAt) : "--"}</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
