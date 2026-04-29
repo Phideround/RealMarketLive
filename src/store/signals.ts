@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+export const SIGNAL_REFRESH_MS = 30_000;
+
 export interface Signal {
   symbol: string;
   timeframe: string;
@@ -21,6 +23,24 @@ export interface Signal {
     currentImbalance: string;
     bullishRatio: number;
     bearishRatio: number;
+  };
+  anomaly?: {
+    hasAnomalies: boolean;
+    anomalies: Array<{
+      openTime: string;
+      type: string;
+      value: number;
+      threshold: number;
+      description: string;
+    }>;
+  };
+  manipulationRisk?: {
+    riskLevel: string;
+    riskScore: number;
+    factors: string[];
+    avgWickToBodyRatio: number;
+    currentVolume: number;
+    avgVolume: number;
   };
   volatility?: {
     openTime: string;
@@ -77,6 +97,7 @@ interface SignalsStore {
   // Signal history
   signalHistory: Signal[];
   addToHistory: (signal: Signal) => void;
+  clearHistory: () => void;
   maxHistorySize: number;
 }
 
@@ -96,5 +117,6 @@ export const useSignalsStore = create<SignalsStore>((set, get) => ({
         state.maxHistorySize
       ),
     })),
+  clearHistory: () => set({ signalHistory: [] }),
   maxHistorySize: 50,
 }));

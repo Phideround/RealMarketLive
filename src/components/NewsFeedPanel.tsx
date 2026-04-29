@@ -72,13 +72,29 @@ export function NewsFeedPanel() {
       <div className="px-3 py-2 border-b border-terminal-positive/20 bg-black/70">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-xs font-bold text-terminal-accent tracking-wider">NEWS FEED</h3>
-          <button
-            onClick={() => setShowAllModal(true)}
-            className="text-[10px] px-2 py-1 border border-terminal-positive/40 text-terminal-positive hover:bg-terminal-positive/10"
-            title="Open full news view"
-          >
-            ▦ All
-          </button>
+          <div className="flex items-center gap-1">
+            <a
+              href="https://realmarketfeed.vercel.app/"
+              target="_blank"
+              rel="noreferrer"
+              className="h-6 w-6 inline-flex items-center justify-center border border-terminal-positive/40 text-terminal-positive hover:bg-terminal-positive/10"
+              title="Open RealMarketFeed RSS"
+              aria-label="Open RealMarketFeed RSS"
+            >
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true">
+                <circle cx="6.5" cy="17.5" r="2.1" />
+                <path d="M4.5 10.5v3a6 6 0 0 1 6 6h3a9 9 0 0 0-9-9z" />
+                <path d="M4.5 4.5v3a12 12 0 0 1 12 12h3c0-8.28-6.72-15-15-15z" />
+              </svg>
+            </a>
+            <button
+              onClick={() => setShowAllModal(true)}
+              className="text-[10px] px-2 py-1 border border-terminal-positive/40 text-terminal-positive hover:bg-terminal-positive/10"
+              title="Open full news view"
+            >
+              ▦ All
+            </button>
+          </div>
         </div>
       </div>
 

@@ -74,7 +74,14 @@ export function SystemLogPanel() {
                     [{formatTime(log.timestamp)}]
                   </span>
                   <span className={`min-w-fit ${colorClass}`}>{icon}</span>
-                  <span className={`${colorClass} flex-1`}>{log.message}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className={`${colorClass} break-words`}>{log.message}</div>
+                    {log.details ? (
+                      <div className="mt-0.5 break-words text-[10px] leading-relaxed text-terminal-muted/85">
+                        {log.details}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             );

@@ -1,181 +1,237 @@
-"use client";
+﻿"use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useMarketStore } from "@/store/market";
-import { useSignalsStore } from "@/store/signals";
-import { formatNumber, formatTime } from "@/lib/api";
+import { SIGNAL_REFRESH_MS, useSignalsStore } from "@/store/signals";
+import { formatDate, formatNumber, formatTime } from "@/lib/api";
 
 export function SignalPanel() {
-  const { currentSymbol, symbols } = useMarketStore();
+  const { currentSymbol, symbols, setCurrentSymbol } = useMarketStore();
   const { signals } = useSignalsStore();
+  const [showAnomalyDetails, setShowAnomalyDetails] = useState(false);
+  const [cooldownNow, setCooldownNow] = useState(() => Date.now());
 
-  const displaySignals = symbols
-    .map((symbolInfo) => signals[symbolInfo.symbolCode])
-    .filter((signal): signal is typeof signals[string] => signal !== undefined);
+  const displaySignals = useMemo(
+    () =>
+      symbols
+        .map((symbolInfo) => signals[symbolInfo.symbolCode])
+        .filter((signal): signal is typeof signals[string] => signal !== undefined),
+    [signals, symbols]
+  );
 
   const currentSignal = signals[currentSymbol];
+  const visibleAnomalies = useMemo(
+    () =>
+      [...(currentSignal?.anomaly?.anomalies ?? [])].sort(
+        (left, right) => Date.parse(right.openTime) - Date.parse(left.openTime)
+      ),
+    [currentSignal?.anomaly?.anomalies]
+  );
+
+  useEffect(() => {
+    setShowAnomalyDetails(false);
+  }, [currentSymbol]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCooldownNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const signalCooldownSeconds = useMemo(() => {
+    if (!currentSignal?.timestamp) return null;
+    const nextRefreshAt = Date.parse(currentSignal.timestamp) + SIGNAL_REFRESH_MS;
+    if (!Number.isFinite(nextRefreshAt)) return null;
+    return Math.max(0, Math.ceil((nextRefreshAt - cooldownNow) / 1000));
+  }, [cooldownNow, currentSignal?.timestamp]);
+
+  const formattedSignalUpdatedAt = useMemo(() => {
+    if (!currentSignal?.timestamp) return "--";
+    return `${formatDate(currentSignal.timestamp)} ${formatTime(currentSignal.timestamp)}`;
+  }, [currentSignal?.timestamp]);
+
+  const directionTone =
+    currentSignal?.direction === "BUY"
+      ? "text-terminal-positive"
+      : currentSignal?.direction === "SELL"
+        ? "text-terminal-negative"
+        : "text-terminal-accent";
 
   return (
-    <div className="flex flex-col h-full border border-terminal-positive/20 rounded bg-black/40 overflow-hidden">
-      {/* Header */}
-      <div className="sticky top-0 bg-black/70 border-b border-terminal-positive/20 px-3 py-2 z-10">
-        <h3 className="text-xs font-bold text-terminal-accent tracking-wider">MARKET SIGNALS</h3>
+    <div className="flex h-full flex-col overflow-hidden rounded bg-black/40 border border-terminal-positive/20">
+      <div className="sticky top-0 z-10 border-b border-terminal-positive/20 bg-black/70 px-3 py-2">
+        <div className="text-xs font-bold tracking-wider text-terminal-accent">MARKET SIGNALS</div>
+        <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-terminal-muted">Focused Decision Stack</div>
       </div>
 
-      {/* Current Symbol Signal */}
-      {currentSignal && (
-        <div className="px-3 py-3 border-b border-terminal-positive/20 bg-black/30">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-bold text-terminal-accent">{currentSymbol}</div>
-            <div className="text-xs text-terminal-muted">
-              {formatTime(currentSignal.timestamp)}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            <div>
-              <div className="text-xs text-terminal-muted">Direction</div>
-              <div
-                className={`text-lg font-bold font-mono ${
-                  currentSignal.direction === "BUY"
-                    ? "text-terminal-positive"
-                    : currentSignal.direction === "SELL"
-                      ? "text-terminal-negative"
-                      : "text-terminal-accent"
-                }`}
-              >
-                {currentSignal.direction}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-terminal-muted">Confidence</div>
-              <div className="text-lg font-bold text-terminal-positive">
-                {currentSignal.confidence}%
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-terminal-muted">Timeframe</div>
-              <div className="text-lg font-bold text-terminal-positive">
-                {currentSignal.timeframe}
-              </div>
-            </div>
-          </div>
-
-          {currentSignal.reasoning && (
-            <div className="text-xs text-terminal-muted bg-black/50 p-2 rounded border border-terminal-positive/20">
-              {currentSignal.reasoning}
-            </div>
-          )}
-
-          {currentSignal.confluence && (
-            <div className="mt-2 text-xs bg-black/50 p-2 rounded border border-terminal-accent/30 space-y-1">
-              <div className="text-terminal-accent font-bold">Confluence</div>
-              <div className="text-terminal-muted">
-                Signal: <span className="text-terminal-positive">{currentSignal.confluence.signal}</span> | Strength: <span className="text-terminal-positive">{currentSignal.confluence.strength}</span> | Score: <span className="text-terminal-positive">{currentSignal.confluence.score}</span>
-              </div>
-              {currentSignal.confluence.reasons.slice(0, 2).map((reason, idx) => (
-                <div key={`reason-${idx}`} className="text-terminal-muted">• {reason}</div>
-              ))}
-            </div>
-          )}
-
-          {currentSignal.setup && (
-            <div className="mt-2 text-xs bg-black/50 p-2 rounded border border-terminal-positive/20">
-              <div className="text-terminal-accent font-bold">Setup</div>
-              <div className="text-terminal-muted">
-                {currentSignal.setup.setup} / {currentSignal.setup.direction} @ {formatNumber(currentSignal.setup.price, 2)}
-              </div>
-              <div className="text-terminal-muted line-clamp-2">{currentSignal.setup.description}</div>
-            </div>
-          )}
-
-          {currentSignal.orderFlow && (
-            <div className="mt-2 text-xs bg-black/50 p-2 rounded border border-terminal-positive/20">
-              <div className="text-terminal-accent font-bold">Orderflow</div>
-              <div className="text-terminal-muted mb-1">{currentSignal.orderFlow.currentImbalance}</div>
-              <div className="h-3 rounded overflow-hidden border border-terminal-positive/20 bg-black/60 flex">
-                <div
-                  className="h-full bg-terminal-positive/70"
-                  style={{ width: `${Math.max(0, Math.min(100, currentSignal.orderFlow.bullishRatio))}%` }}
-                />
-                <div
-                  className="h-full bg-red-400/70"
-                  style={{ width: `${Math.max(0, Math.min(100, currentSignal.orderFlow.bearishRatio))}%` }}
-                />
-              </div>
-              <div className="mt-1 flex items-center justify-between text-[11px] text-terminal-muted font-mono">
-                <span className="text-terminal-positive">Bull {formatNumber(currentSignal.orderFlow.bullishRatio, 1)}%</span>
-                <span className="text-red-400">Bear {formatNumber(currentSignal.orderFlow.bearishRatio, 1)}%</span>
-              </div>
-            </div>
-          )}
-
-          {currentSignal.volatility && (
-            <div className="mt-2 text-xs bg-black/50 p-2 rounded border border-terminal-positive/20">
-              <div className="text-terminal-accent font-bold">Volatility</div>
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-terminal-muted">
-                <div>ATR: <span className="text-terminal-positive">{formatNumber(currentSignal.volatility.atr, 2)}</span></div>
-                <div>ATR %: <span className="text-terminal-positive">{formatNumber(currentSignal.volatility.atrPercent, 2)}%</span></div>
-                <div>Band: <span className="text-terminal-accent">{formatNumber(currentSignal.volatility.bandWidth, 2)}</span></div>
-                <div>Hist Vol: <span className="text-terminal-accent">{formatNumber(currentSignal.volatility.historicalVolatility, 2)}</span></div>
-              </div>
-            </div>
-          )}
-
-          {currentSignal.stopHunt && (
-            <div className="mt-2 text-xs bg-black/50 p-2 rounded border border-terminal-positive/20">
-              <div className="text-terminal-accent font-bold">Stop Hunt Zones</div>
-              <div className="text-terminal-muted">Current: {formatNumber(currentSignal.stopHunt.currentPrice, 2)}</div>
-              {currentSignal.stopHunt.zones.slice(0, 2).map((z, idx) => (
-                <div key={`zone-${idx}`} className="text-terminal-muted">
-                  {z.type} @ {formatNumber(z.price, 2)} {z.recentlyHunted ? "(hunted)" : ""}
+      <div className="border-b border-terminal-positive/20 bg-black/30 px-3 py-3">
+        {currentSignal ? (
+          <>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="text-sm font-bold text-terminal-accent">{currentSymbol}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-terminal-muted">
+                  Updated {formattedSignalUpdatedAt}
                 </div>
-              ))}
+              </div>
+              <div className={`text-lg font-bold font-mono ${directionTone}`}>{currentSignal.direction}</div>
             </div>
-          )}
 
-          {currentSignal.nextInsight && (
-            <div className="mt-2 text-xs bg-black/50 p-2 rounded border border-terminal-positive/20">
-              <div className="text-terminal-accent font-bold">Next Insight</div>
-              <div className="text-terminal-muted">
-                Bias: <span className={currentSignal.nextInsight.bias.toLowerCase().includes("bear") ? "text-red-400" : "text-terminal-positive"}>{currentSignal.nextInsight.bias}</span>
-                {" | "}
-                Score B{currentSignal.nextInsight.bullScore}/S{currentSignal.nextInsight.bearScore}
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-mono xl:grid-cols-4">
+              <div className="border border-terminal-positive/15 bg-black/40 px-2 py-1.5">
+                <div className="text-terminal-muted">Confidence</div>
+                <div className="mt-1 font-bold text-terminal-positive">{currentSignal.confidence}%</div>
               </div>
-              <div className="text-terminal-muted">
-                RSI {formatNumber(currentSignal.nextInsight.rsi, 2)} | ATR {formatNumber(currentSignal.nextInsight.atr, 2)}
+              <div className="border border-terminal-positive/15 bg-black/40 px-2 py-1.5">
+                <div className="text-terminal-muted">Timeframe</div>
+                <div className="mt-1 font-bold text-terminal-positive">{currentSignal.timeframe}</div>
               </div>
-              <div className="text-terminal-muted">
-                S {formatNumber(currentSignal.nextInsight.support, 2)} / R {formatNumber(currentSignal.nextInsight.resistance, 2)}
-              </div>
-              <div className="text-terminal-muted">
-                T↑ {formatNumber(currentSignal.nextInsight.targetUp, 2)} | T↓ {formatNumber(currentSignal.nextInsight.targetDown, 2)}
-              </div>
-              {currentSignal.nextInsight.signals.slice(0, 2).map((s, idx) => (
-                <div key={`next-signal-${idx}`} className="text-terminal-muted">
-                  • {s.name}: {s.direction}
+              <div className="border border-terminal-positive/15 bg-black/40 px-2 py-1.5">
+                <div className="text-terminal-muted">Bias</div>
+                <div className="mt-1 font-bold text-terminal-positive">
+                  {currentSignal.nextInsight?.bias ?? currentSignal.setup?.direction ?? "Mixed"}
                 </div>
-              ))}
+              </div>
+              <div className="border border-terminal-positive/15 bg-black/40 px-2 py-1.5">
+                <div className="text-terminal-muted">Refresh</div>
+                <div className="mt-1 font-bold text-terminal-positive">
+                  {signalCooldownSeconds == null ? "--" : signalCooldownSeconds > 0 ? `${signalCooldownSeconds}s` : "Ready"}
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* All Signals */}
+            {currentSignal.reasoning && (
+              <div className="mt-3 rounded border border-terminal-positive/15 bg-black/50 px-2 py-2 text-[11px] leading-relaxed text-terminal-muted line-clamp-3">
+                {currentSignal.reasoning}
+              </div>
+            )}
+
+            <div className="mt-3 grid grid-cols-1 gap-2 text-[11px]">
+              {currentSignal.confluence && (
+                <div className="rounded border border-terminal-accent/25 bg-black/50 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-bold text-terminal-accent">Confluence</div>
+                    <div className="text-terminal-positive">{formatNumber(currentSignal.confluence.score, 0)}</div>
+                  </div>
+                  <div className="mt-1 text-terminal-muted">
+                    {currentSignal.confluence.signal} | {currentSignal.confluence.strength}
+                  </div>
+                </div>
+              )}
+
+              {currentSignal.setup && (
+                <div className="rounded border border-terminal-positive/20 bg-black/50 p-2">
+                  <div className="font-bold text-terminal-accent">Setup</div>
+                  <div className="mt-1 text-terminal-muted line-clamp-2">
+                    {currentSignal.setup.setup} / {currentSignal.setup.direction} @ {formatNumber(currentSignal.setup.price, 2)}
+                  </div>
+                </div>
+              )}
+
+              {currentSignal.nextInsight && (
+                <div className="rounded border border-terminal-positive/20 bg-black/50 p-2">
+                  <div className="font-bold text-terminal-accent">Next Insight</div>
+                  <div className="mt-1 text-terminal-muted">
+                    Bias <span className={currentSignal.nextInsight.bias.toLowerCase().includes("bear") ? "text-red-400" : "text-terminal-positive"}>{currentSignal.nextInsight.bias}</span>
+                    {" | "}
+                    B{currentSignal.nextInsight.bullScore}/S{currentSignal.nextInsight.bearScore}
+                  </div>
+                  <div className="mt-1 text-terminal-muted">
+                    UP {formatNumber(currentSignal.nextInsight.targetUp, 2)} | DN {formatNumber(currentSignal.nextInsight.targetDown, 2)}
+                  </div>
+                </div>
+              )}
+
+              {currentSignal.volatility && (
+                <div className="rounded border border-terminal-positive/20 bg-black/50 p-2">
+                  <div className="font-bold text-terminal-accent">Volatility</div>
+                  <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 text-terminal-muted">
+                    <div>ATR <span className="text-terminal-positive">{formatNumber(currentSignal.volatility.atr, 2)}</span></div>
+                    <div>ATR% <span className="text-terminal-positive">{formatNumber(currentSignal.volatility.atrPercent, 2)}%</span></div>
+                  </div>
+                </div>
+              )}
+
+              {currentSignal.stopHunt && (
+                <div className="rounded border border-terminal-positive/20 bg-black/50 p-2">
+                  <div className="font-bold text-terminal-accent">Stop Hunt</div>
+                  <div className="mt-1 text-terminal-muted">Current {formatNumber(currentSignal.stopHunt.currentPrice, 2)}</div>
+                </div>
+              )}
+
+              {currentSignal.anomaly && (
+                <div className="rounded border border-terminal-positive/20 bg-black/50 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-bold text-terminal-accent">Anomaly</div>
+                    <div className="flex items-center gap-2">
+                      <div className={currentSignal.anomaly.hasAnomalies ? "text-red-400" : "text-terminal-positive"}>
+                        {currentSignal.anomaly.hasAnomalies ? `${currentSignal.anomaly.anomalies.length} detected` : "None"}
+                      </div>
+                      {visibleAnomalies.length > 0 ? (
+                        <button
+                          onClick={() => setShowAnomalyDetails((prev) => !prev)}
+                          className="inline-flex h-7 w-7 items-center justify-center border border-terminal-positive/25 bg-black/60 text-terminal-positive transition-all hover:border-terminal-positive hover:bg-terminal-positive/10"
+                          title={showAnomalyDetails ? "Hide anomaly details" : "Show anomaly details"}
+                          aria-label={showAnomalyDetails ? "Hide anomaly details" : "Show anomaly details"}
+                        >
+                          {showAnomalyDetails ? (
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                              <path d="M6 15l6-6 6 6" />
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                              <path d="M12 5v14" />
+                              <path d="M5 12h14" />
+                            </svg>
+                          )}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentSignal.manipulationRisk && (
+                <div className="rounded border border-terminal-positive/20 bg-black/50 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-bold text-terminal-accent">Manipulation Risk</div>
+                    <div className={currentSignal.manipulationRisk.riskLevel.toLowerCase().includes("high") ? "text-red-400" : "text-terminal-positive"}>
+                      {currentSignal.manipulationRisk.riskLevel} {formatNumber(currentSignal.manipulationRisk.riskScore, 0)}
+                    </div>
+                  </div>
+                  <div className="mt-1 text-terminal-muted">
+                    Wick/Body {formatNumber(currentSignal.manipulationRisk.avgWickToBodyRatio, 2)}x
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="rounded border border-terminal-positive/15 bg-black/40 px-2 py-3 text-[11px] text-terminal-muted">
+            Waiting for signal data...
+          </div>
+        )}
+      </div>
+
       <div className="flex-1 overflow-y-auto px-3 py-2">
-        <div className="text-xs font-bold text-terminal-accent tracking-wider mb-2">ALL SYMBOLS</div>
-
+        <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-terminal-accent">Coverage</div>
         <div className="space-y-2">
           {displaySignals.map((signal) => (
-            <div
+            <button
               key={signal.symbol}
-              className="p-2 rounded border border-terminal-positive/20 bg-black/30 hover:border-terminal-positive/50 transition-all"
+              onClick={() => setCurrentSymbol(signal.symbol)}
+              className={`w-full rounded border px-2 py-2 text-left transition-all ${
+                signal.symbol === currentSymbol
+                  ? "border-terminal-positive/60 bg-terminal-positive/10"
+                  : "border-terminal-positive/20 bg-black/30 hover:border-terminal-positive/45"
+              }`}
             >
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold text-terminal-positive text-sm">
-                  {signal.symbol}
-                </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-bold text-terminal-positive">{signal.symbol}</span>
                 <span
-                  className={`text-xs font-bold ${
+                  className={`text-[11px] font-bold ${
                     signal.direction === "BUY"
                       ? "text-terminal-positive"
                       : signal.direction === "SELL"
@@ -183,22 +239,65 @@ export function SignalPanel() {
                         : "text-terminal-accent"
                   }`}
                 >
-                  {signal.direction} ({signal.confidence}%)
+                  {signal.direction} {signal.confidence}%
                 </span>
               </div>
-
-              <div className="text-xs text-terminal-muted line-clamp-2">
-                {signal.reasoning}
-              </div>
-            </div>
+              <div className="mt-1 text-[11px] text-terminal-muted line-clamp-2">{signal.reasoning}</div>
+            </button>
           ))}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="border-t border-terminal-positive/20 px-3 py-2 text-xs text-terminal-muted bg-black/70">
+      <div className="border-t border-terminal-positive/20 bg-black/70 px-3 py-2 text-xs text-terminal-muted">
         Total Signals: {displaySignals.length}
       </div>
+
+      {showAnomalyDetails && visibleAnomalies.length > 0 ? (
+        <div
+          className="absolute inset-0 z-30 flex items-center justify-center bg-black/75 p-3 backdrop-blur-[2px]"
+          onClick={() => setShowAnomalyDetails(false)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-md overflow-hidden rounded border border-terminal-positive/35 bg-[#040404] shadow-[0_0_24px_rgba(0,255,65,0.14)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-terminal-positive/20 bg-black/80 px-3 py-2">
+              <div>
+                <div className="text-xs font-bold tracking-[0.18em] text-terminal-accent">ANOMALY DETAILS</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-terminal-muted">{currentSymbol} · {visibleAnomalies.length} events</div>
+              </div>
+              <button
+                onClick={() => setShowAnomalyDetails(false)}
+                className="inline-flex h-8 w-8 items-center justify-center border border-terminal-positive/25 bg-black/60 text-terminal-positive transition-all hover:border-terminal-positive hover:bg-terminal-positive/10"
+                title="Close anomaly popup"
+                aria-label="Close anomaly popup"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M6 6l12 12" />
+                  <path d="M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="max-h-[calc(80vh-4rem)] overflow-y-auto px-3 py-3 text-[10px]">
+              <div className="space-y-2">
+                {visibleAnomalies.map((anomaly, index) => (
+                  <div key={`${anomaly.openTime}-${anomaly.type}-${index}`} className="rounded border border-terminal-positive/10 bg-black/35 p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-red-400">{anomaly.type}</span>
+                      <span className="text-terminal-muted">{formatDate(anomaly.openTime)} {formatTime(anomaly.openTime)}</span>
+                    </div>
+                    <div className="mt-1 text-terminal-muted">
+                      Value {formatNumber(anomaly.value, 2)} / Threshold {formatNumber(anomaly.threshold, 2)}
+                    </div>
+                    <div className="mt-1 leading-relaxed text-terminal-muted/90">{anomaly.description}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

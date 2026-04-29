@@ -31,7 +31,7 @@ export function TopMoversPanel({ compact = false }: TopMoversPanelProps) {
       })
       .filter((item): item is { symbol: string; close: number; change24h: number; abs: number } => item !== null)
       .sort((a, b) => b.abs - a.abs)
-      .slice(0, 5);
+        .slice(0, 10);
   }, [symbols, priceData]);
 
   return (

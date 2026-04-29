@@ -97,6 +97,83 @@ button {
   transition: all 0.2s ease;
 }
 
+@keyframes hud-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes panel-sweep {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.12;
+  }
+  45% {
+    opacity: 0.16;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+@keyframes flow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(0, 255, 65, 0);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(0, 255, 65, 0.22);
+  }
+}
+
+@keyframes flow-meter-rise {
+  0% {
+    filter: brightness(0.9);
+  }
+  50% {
+    filter: brightness(1.22);
+  }
+  100% {
+    filter: brightness(0.96);
+  }
+}
+
+.hud-fade-in {
+  animation: hud-fade-in 420ms ease-out both;
+}
+
+.panel-energized {
+  position: relative;
+  overflow: hidden;
+}
+
+.panel-energized::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 25%, rgba(0, 255, 65, 0.08) 50%, transparent 75%);
+  transform: translateX(-120%);
+  animation: panel-sweep 7s linear infinite;
+  pointer-events: none;
+}
+
+.flow-pulse {
+  animation: flow-pulse 2.4s ease-in-out infinite;
+}
+
+.flow-meter-rise {
+  animation: flow-meter-rise 1.8s ease-in-out infinite;
+}
+
 @keyframes ticker-left {
   0% {
     transform: translateX(0%);
@@ -130,5 +207,9 @@ button {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .panel-energized::after {
+    animation: none !important;
   }
 }

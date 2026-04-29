@@ -10,12 +10,18 @@ export const ENDPOINTS = {
   marketPrice: `${API_BASE_URL}/api/v1/price/market?apiKey=${API_KEY}`,
   ema: (symbol: string, timeFrame: string, period: number) =>
     `${API_BASE_URL}/api/v1/indicator/ema?apiKey=${API_KEY}&SymbolCode=${symbol}&TimeFrame=${timeFrame}&Period=${period}`,
+  bollingerBands: (symbol: string, timeFrame: string, period: number, multiplier: number) =>
+    `${API_BASE_URL}/api/v1/indicator/bollinger-bands?apiKey=${API_KEY}&SymbolCode=${symbol}&TimeFrame=${timeFrame}&Period=${period}&Multiplier=${multiplier}`,
   sentiment: (symbol: string, timeFrame: string) =>
     `${API_BASE_URL}/api/v1/indicator/sentiment?apiKey=${API_KEY}&symbolCode=${symbol}&timeFrame=${timeFrame}`,
   stopHuntZones: (symbol: string, timeFrame: string) =>
     `${API_BASE_URL}/api/v1/stop-hunt/zones?apiKey=${API_KEY}&SymbolCode=${symbol}&TimeFrame=${timeFrame}`,
   orderflowImbalance: (symbol: string, timeFrame: string) =>
     `${API_BASE_URL}/api/v1/orderflow/imbalance?apiKey=${API_KEY}&SymbolCode=${symbol}&TimeFrame=${timeFrame}`,
+  anomaly: (symbol: string, timeFrame: string) =>
+    `${API_BASE_URL}/api/v1/anomaly?apiKey=${API_KEY}&SymbolCode=${symbol}&TimeFrame=${timeFrame}`,
+  manipulationRisk: (symbol: string, timeFrame: string) =>
+    `${API_BASE_URL}/api/v1/manipulation-risk?apiKey=${API_KEY}&SymbolCode=${symbol}&TimeFrame=${timeFrame}`,
   insightConfluence: (symbol: string, timeFrame: string) =>
     `${API_BASE_URL}/api/v1/insight/confluence?apiKey=${API_KEY}&SymbolCode=${symbol}&TimeFrame=${timeFrame}`,
   volatility: (symbol: string, timeFrame: string, period: number) =>
@@ -28,6 +34,8 @@ export const ENDPOINTS = {
     `${WS_BASE_URL}/price?apiKey=${API_KEY}&symbolCode=${symbol}&timeFrame=${timeFrame}`,
   candlesWS: (symbol: string, timeFrame: string) =>
     `${WS_BASE_URL}/candles?apiKey=${API_KEY}&symbolCode=${symbol}&timeFrame=${timeFrame}`,
+  orderflowImbalanceWS: (symbol: string, timeFrame: string) =>
+    `${WS_BASE_URL}/orderflow/imbalance?apiKey=${API_KEY}&symbolCode=${symbol}&timeFrame=${timeFrame}`,
 };
 
 export interface SentimentIndicator {
@@ -47,6 +55,13 @@ export interface SentimentIndicator {
 export interface EmaPoint {
   openTime: string;
   value: number;
+}
+
+export interface BollingerBandPoint {
+  openTime: string;
+  upper: number;
+  middle: number;
+  lower: number;
 }
 
 export interface StopHuntZonesResponse {
@@ -94,6 +109,32 @@ export interface InsightConfluenceResponse {
   price: number;
   nearestSupport: number;
   nearestResistance: number;
+}
+
+export interface AnomalyResponse {
+  symbolCode: string;
+  timeFrame: string;
+  calculatedAt: string;
+  hasAnomalies: boolean;
+  anomalies: Array<{
+    openTime: string;
+    type: string;
+    value: number;
+    threshold: number;
+    description: string;
+  }>;
+}
+
+export interface ManipulationRiskResponse {
+  symbolCode: string;
+  timeFrame: string;
+  calculatedAt: string;
+  riskLevel: string;
+  riskScore: number;
+  factors: string[];
+  avgWickToBodyRatio: number;
+  currentVolume: number;
+  avgVolume: number;
 }
 
 export interface InsightSetupResponse {
@@ -196,6 +237,7 @@ export async function fetchMarketPrices(): Promise<import("@/store/market").Pric
         const ask = row.Ask ?? row.ask ?? closePrice;
         const openTime = row.OpenTime ?? row.openTime ?? new Date().toISOString();
         const historyVolumes = row.HistoryVolumes ?? row.historyVolumes;
+        const historyPrices = row.HistoryPrices ?? row.historyPrices;
         const hourlyChangePercent = row.HourlyChangePercent ?? row.hourlyChangePercent;
         const dailyChangePercent = row.DailyChangePercent ?? row.dailyChangePercent;
 
@@ -213,6 +255,11 @@ export async function fetchMarketPrices(): Promise<import("@/store/market").Pric
 
         if (Array.isArray(historyVolumes)) {
           normalized.HistoryVolumes = historyVolumes
+            .map((v: unknown) => Number(v))
+            .filter((v: number) => Number.isFinite(v));
+        }
+        if (Array.isArray(historyPrices)) {
+          normalized.HistoryPrices = historyPrices
             .map((v: unknown) => Number(v))
             .filter((v: number) => Number.isFinite(v));
         }
@@ -319,6 +366,45 @@ export async function fetchEMAIndicator(
   }
 }
 
+export async function fetchBollingerBands(
+  symbol: string,
+  timeFrame: string,
+  period: number,
+  multiplier: number
+): Promise<BollingerBandPoint[]> {
+  try {
+    const response = await fetch(ENDPOINTS.bollingerBands(symbol, timeFrame, period, multiplier), {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const json = await response.json();
+    const payload = json.data ?? json;
+    if (!Array.isArray(payload)) return [];
+
+    return payload
+      .map((row: any) => ({
+        openTime: String(row.openTime ?? row.OpenTime ?? ""),
+        upper: Number(row.upper ?? row.Upper),
+        middle: Number(row.middle ?? row.Middle),
+        lower: Number(row.lower ?? row.Lower),
+      }))
+      .filter(
+        (row: BollingerBandPoint) =>
+          row.openTime.length > 0 &&
+          Number.isFinite(row.upper) &&
+          Number.isFinite(row.middle) &&
+          Number.isFinite(row.lower)
+      );
+  } catch (error) {
+    console.error("Error fetching Bollinger Bands:", error);
+    return [];
+  }
+}
+
 export async function fetchStopHuntZones(
   symbol: string,
   timeFrame: string
@@ -382,6 +468,66 @@ export async function fetchOrderflowImbalance(
     };
   } catch (error) {
     console.error("Error fetching orderflow imbalance:", error);
+    return null;
+  }
+}
+
+export async function fetchAnomaly(
+  symbol: string,
+  timeFrame: string
+): Promise<AnomalyResponse | null> {
+  try {
+    const response = await fetch(ENDPOINTS.anomaly(symbol, timeFrame), { method: "GET" });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const json = await response.json();
+    const payload = json.data ?? json;
+    if (!payload || typeof payload !== "object") return null;
+
+    return {
+      symbolCode: String(payload.symbolCode ?? symbol),
+      timeFrame: String(payload.timeFrame ?? timeFrame),
+      calculatedAt: String(payload.calculatedAt ?? new Date().toISOString()),
+      hasAnomalies: Boolean(payload.hasAnomalies),
+      anomalies: Array.isArray(payload.anomalies)
+        ? payload.anomalies.map((item: any) => ({
+            openTime: String(item.openTime ?? new Date().toISOString()),
+            type: String(item.type ?? "Unknown"),
+            value: Number(item.value ?? 0),
+            threshold: Number(item.threshold ?? 0),
+            description: String(item.description ?? ""),
+          }))
+        : [],
+    };
+  } catch (error) {
+    console.error("Error fetching anomaly:", error);
+    return null;
+  }
+}
+
+export async function fetchManipulationRisk(
+  symbol: string,
+  timeFrame: string
+): Promise<ManipulationRiskResponse | null> {
+  try {
+    const response = await fetch(ENDPOINTS.manipulationRisk(symbol, timeFrame), { method: "GET" });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const json = await response.json();
+    const payload = json.data ?? json;
+    if (!payload || typeof payload !== "object") return null;
+
+    return {
+      symbolCode: String(payload.symbolCode ?? symbol),
+      timeFrame: String(payload.timeFrame ?? timeFrame),
+      calculatedAt: String(payload.calculatedAt ?? new Date().toISOString()),
+      riskLevel: String(payload.riskLevel ?? "Unknown"),
+      riskScore: Number(payload.riskScore ?? 0),
+      factors: Array.isArray(payload.factors) ? payload.factors.map((factor: any) => String(factor)) : [],
+      avgWickToBodyRatio: Number(payload.avgWickToBodyRatio ?? 0),
+      currentVolume: Number(payload.currentVolume ?? 0),
+      avgVolume: Number(payload.avgVolume ?? 0),
+    };
+  } catch (error) {
+    console.error("Error fetching manipulation risk:", error);
     return null;
   }
 }

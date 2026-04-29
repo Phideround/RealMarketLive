@@ -1,11 +1,16 @@
 import { create } from "zustand";
 
-export type BottomTab = "logs";
+export type BottomTab = "system-logs" | "signal-logs";
 
 interface UIStore {
   // Active bottom panel tab
   activeBottomTab: BottomTab;
   setActiveBottomTab: (tab: BottomTab) => void;
+
+  // Bottom logger height
+  loggerExpanded: boolean;
+  setLoggerExpanded: (expanded: boolean) => void;
+  toggleLoggerExpanded: () => void;
 
   // Panel visibility
   showLogs: boolean;
@@ -22,8 +27,13 @@ interface UIStore {
 }
 
 export const useUIStore = create<UIStore>((set) => ({
-  activeBottomTab: "logs",
-  setActiveBottomTab: () => set({ activeBottomTab: "logs" }),
+  activeBottomTab: "system-logs",
+  setActiveBottomTab: (tab) => set({ activeBottomTab: tab }),
+
+  loggerExpanded: false,
+  setLoggerExpanded: (expanded) => set({ loggerExpanded: expanded }),
+  toggleLoggerExpanded: () =>
+    set((state) => ({ loggerExpanded: !state.loggerExpanded })),
 
   showLogs: false,
   setShowLogs: (show: boolean) => set({ showLogs: show }),

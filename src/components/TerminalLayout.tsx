@@ -21,7 +21,7 @@ export function TerminalLayout() {
   useInitializeMarket();
 
   const { setCurrentSymbol, setCurrentTimeframe, symbols, currentSymbol, currentTimeframe } = useMarketStore();
-  const { setActiveBottomTab } = useUIStore();
+  const { setActiveBottomTab, loggerExpanded } = useUIStore();
 
   // Live WebSocket feeds – reconnect automatically when symbol or timeframe changes
   const priceConfig = useMemo(
@@ -32,8 +32,13 @@ export function TerminalLayout() {
     () => ({ symbol: currentSymbol, timeframe: currentTimeframe, type: "candles" as const }),
     [currentSymbol, currentTimeframe]
   );
+  const orderflowConfig = useMemo(
+    () => ({ symbol: currentSymbol, timeframe: currentTimeframe, type: "orderflow" as const }),
+    [currentSymbol, currentTimeframe]
+  );
   useWebSocket(priceConfig);
   useWebSocket(candlesConfig);
+  useWebSocket(orderflowConfig);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -71,7 +76,7 @@ export function TerminalLayout() {
       // Tab shortcuts
       if (key.toLowerCase() === "l") {
         e.preventDefault();
-        setActiveBottomTab("logs");
+        setActiveBottomTab("system-logs");
       }
     };
 
@@ -101,7 +106,7 @@ export function TerminalLayout() {
           </div>
 
           <div className={`${PANEL_FRAME} flex min-w-0 flex-col min-h-[24rem] lg:min-h-0`}>
-            <div className="flex items-center justify-between border-b border-terminal-positive/25 bg-black px-4 py-3">
+            <div className="hud-fade-in flex items-center justify-between border-b border-terminal-positive/25 bg-black px-4 py-3">
               <div>
                 <div className="text-[11px] uppercase tracking-[0.24em] text-terminal-muted">Focus Market</div>
                 <div className="mt-1 text-sm text-terminal-muted">
@@ -134,30 +139,32 @@ export function TerminalLayout() {
               </div>
             </div>
             <div className="min-h-0 flex-1 p-2">
-              <div className="h-full overflow-hidden rounded-none border border-terminal-positive/20 bg-black">
+              <div className="h-full overflow-hidden rounded-none border border-terminal-positive/20 bg-black panel-energized">
                 <LiveChart />
               </div>
             </div>
           </div>
 
-          <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-1 lg:grid-rows-[1.1fr_1fr_0.92fr_0.55fr] lg:overflow-hidden">
+          <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-1 lg:grid-rows-[1.08fr_1fr_1fr] lg:overflow-hidden">
             <div className={PANEL_FRAME}>
               <HeatmapPanel />
             </div>
             <div className={PANEL_FRAME}>
               <NewsFeedPanel />
             </div>
-            <div className={PANEL_FRAME}>
-              <SentimentGaugePanel />
-            </div>
-            <div className={PANEL_FRAME}>
-              <TopMoversPanel compact />
+            <div className="grid grid-cols-1 gap-3 min-h-0 md:grid-cols-2">
+              <div className={PANEL_FRAME}>
+                <SentimentGaugePanel />
+              </div>
+              <div className={PANEL_FRAME}>
+                <TopMoversPanel compact />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="h-56 overflow-hidden px-3 pb-3 lg:h-[17.5rem]">
+      <div className={`${loggerExpanded ? "h-[23rem] lg:h-[24rem]" : "h-56 lg:h-[17.5rem]"} overflow-hidden px-3 pb-3 transition-[height] duration-300 ease-out`}>
         <BottomPanel />
       </div>
 

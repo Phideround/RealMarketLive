@@ -3,7 +3,7 @@
 import { useEffect, useRef, useMemo, useState } from "react";
 import { Candle, useMarketStore } from "@/store/market";
 import { useSignalsStore } from "@/store/signals";
-import { EmaPoint, fetchEMAIndicator, formatNumber } from "@/lib/api";
+import { BollingerBandPoint, EmaPoint, fetchBollingerBands, fetchEMAIndicator, formatNumber } from "@/lib/api";
 import { calculateVWAP, getSessionRange } from "@/lib/signals";
 
 const TIMEFRAMES = ["M1", "M5", "M15", "H1", "H4", "D1"];
@@ -12,6 +12,13 @@ const EMA_PERIODS = [21, 50] as const;
 const EMA_COLORS: Record<(typeof EMA_PERIODS)[number], string> = {
   21: "#00FF41",
   50: "#FFFFFF",
+};
+const BOLLINGER_PERIOD = 20;
+const BOLLINGER_MULTIPLIER = 2;
+const BOLLINGER_COLORS = {
+  upper: "rgba(255, 160, 70, 0.9)",
+  middle: "rgba(90, 190, 255, 0.9)",
+  lower: "rgba(255, 120, 190, 0.9)",
 };
 type CursorMode = "cursor" | "crosshair";
 
@@ -30,11 +37,14 @@ export function LiveChart() {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [cursorMode, setCursorMode] = useState<CursorMode>("crosshair");
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
+  const [showPriceOverlay, setShowPriceOverlay] = useState(true);
   const [emaEnabled, setEmaEnabled] = useState(true);
   const [emaSeries, setEmaSeries] = useState<Record<(typeof EMA_PERIODS)[number], EmaPoint[]>>({
     21: [],
     50: [],
   });
+  const [bollingerEnabled, setBollingerEnabled] = useState(true);
+  const [bollingerSeries, setBollingerSeries] = useState<BollingerBandPoint[]>([]);
 
 
   const candleList = useMemo(
@@ -43,6 +53,7 @@ export function LiveChart() {
   );
   const currentPrice = priceData[currentSymbol];
   const currentSignal = signals[currentSymbol];
+  const orderFlow = currentSignal?.orderFlow;
   const latestCandle = candleList[0];
   const chartCandles = useMemo(() => [...candleList].reverse(), [candleList]);
   const visibleCandleCount = useMemo(
@@ -53,6 +64,22 @@ export function LiveChart() {
     () => chartCandles.slice(-visibleCandleCount),
     [chartCandles, visibleCandleCount]
   );
+  const volumeDisplay = useMemo(() => {
+    const raw = visibleCandles.map((candle) => {
+      const vol = Number(candle.Volume);
+      if (Number.isFinite(vol) && vol > 0) return vol;
+      const body = Math.abs(candle.ClosePrice - candle.OpenPrice);
+      return Math.max(1, body * 10000);
+    });
+    const max = Math.max(...raw, 1);
+    const hasNative = visibleCandles.some((candle) => Number.isFinite(candle.Volume) && candle.Volume > 0);
+
+    return {
+      bars: raw,
+      max,
+      hasNative,
+    };
+  }, [visibleCandles]);
   const vwap = calculateVWAP(candleList);
   const visibleRange = useMemo(() => getSessionRange(visibleCandles), [visibleCandles]);
   const supportResistance = useMemo(() => {
@@ -74,29 +101,47 @@ export function LiveChart() {
   useEffect(() => {
     let cancelled = false;
 
-    const loadEMA = async () => {
-      if (!emaEnabled) {
+    const loadIndicators = async () => {
+      const tasks: Promise<unknown>[] = [];
+
+      if (emaEnabled) {
+        tasks.push(
+          Promise.all([
+            fetchEMAIndicator(currentSymbol, currentTimeframe, 21),
+            fetchEMAIndicator(currentSymbol, currentTimeframe, 50),
+          ]).then(([ema21, ema50]) => {
+            if (cancelled) return;
+            setEmaSeries({
+              21: ema21,
+              50: ema50,
+            });
+          })
+        );
+      } else {
         setEmaSeries({ 21: [], 50: [] });
-        return;
       }
 
-      const [ema21, ema50] = await Promise.all([
-        fetchEMAIndicator(currentSymbol, currentTimeframe, 21),
-        fetchEMAIndicator(currentSymbol, currentTimeframe, 50),
-      ]);
+      if (bollingerEnabled) {
+        tasks.push(
+          fetchBollingerBands(currentSymbol, currentTimeframe, BOLLINGER_PERIOD, BOLLINGER_MULTIPLIER).then((bands) => {
+            if (cancelled) return;
+            setBollingerSeries(bands);
+          })
+        );
+      } else {
+        setBollingerSeries([]);
+      }
 
-      if (cancelled) return;
-      setEmaSeries({
-        21: ema21,
-        50: ema50,
-      });
+      if (tasks.length > 0) {
+        await Promise.all(tasks);
+      }
     };
 
-    loadEMA();
+    void loadIndicators();
     return () => {
       cancelled = true;
     };
-  }, [currentSymbol, currentTimeframe, emaEnabled]);
+  }, [currentSymbol, currentTimeframe, emaEnabled, bollingerEnabled]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -140,12 +185,8 @@ export function LiveChart() {
     const width = chartSize.width;
     const height = chartSize.height;
     const padding = 40;
-    const volumePanelHeight = Math.max(60, Math.floor(height * 0.22));
-    const panelGap = 10;
     const priceTop = padding;
-    const priceBottom = height - padding - volumePanelHeight - panelGap;
-    const volumeTop = priceBottom + panelGap;
-    const volumeBottom = height - padding;
+    const priceBottom = height - padding;
     const pricePanelHeight = priceBottom - priceTop;
 
     // Clear
@@ -169,6 +210,7 @@ export function LiveChart() {
     let maxPrice = Math.max(...visibleCandles.map((c) => c.HighPrice));
     const visibleTimeSet = new Set(visibleCandles.map((c) => new Date(c.OpenTime).getTime()));
     const emaVisibleValues: number[] = [];
+    const bollingerVisibleValues: number[] = [];
 
     if (emaEnabled) {
       EMA_PERIODS.forEach((period) => {
@@ -184,6 +226,21 @@ export function LiveChart() {
     if (emaVisibleValues.length > 0) {
       minPrice = Math.min(minPrice, ...emaVisibleValues);
       maxPrice = Math.max(maxPrice, ...emaVisibleValues);
+    }
+
+    if (bollingerEnabled) {
+      for (const point of bollingerSeries) {
+        const ts = new Date(point.openTime).getTime();
+        if (!visibleTimeSet.has(ts)) continue;
+        if (Number.isFinite(point.upper)) bollingerVisibleValues.push(point.upper);
+        if (Number.isFinite(point.middle)) bollingerVisibleValues.push(point.middle);
+        if (Number.isFinite(point.lower)) bollingerVisibleValues.push(point.lower);
+      }
+    }
+
+    if (bollingerVisibleValues.length > 0) {
+      minPrice = Math.min(minPrice, ...bollingerVisibleValues);
+      maxPrice = Math.max(maxPrice, ...bollingerVisibleValues);
     }
 
     if (supportResistance.support != null) {
@@ -203,25 +260,12 @@ export function LiveChart() {
     const chartWidth = width - padding * 2;
     const slotWidth = chartWidth / visibleCandles.length;
     const candleWidth = Math.max(2, Math.min(18, slotWidth * 0.72));
-    const maxVolume = Math.max(...visibleCandles.map((c) => c.Volume), 1);
     const xByCandleTime = new Map<number, number>();
 
     const normalizePrice = (price: number) => {
       const pct = (price - minPrice) / (maxPrice - minPrice || 1);
       return priceBottom - pct * pricePanelHeight;
     };
-
-    // Separator for price/volume panels
-    ctx.strokeStyle = "rgba(0, 255, 65, 0.35)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(padding, volumeTop - panelGap / 2);
-    ctx.lineTo(width - padding, volumeTop - panelGap / 2);
-    ctx.stroke();
-
-    // Volume panel background
-    ctx.fillStyle = "rgba(0, 255, 65, 0.05)";
-    ctx.fillRect(padding, volumeTop, chartWidth, volumeBottom - volumeTop);
 
     visibleCandles.forEach((candle, index) => {
       const x = padding + index * slotWidth + slotWidth / 2;
@@ -248,13 +292,6 @@ export function LiveChart() {
       const bodyTop = Math.min(open, close);
       const bodyHeight = Math.abs(close - open) || 1;
       ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
-
-      // Volume bars (bottom panel)
-      const volumeRatio = candle.Volume / maxVolume;
-      const volumeHeight = Math.max(1, volumeRatio * (volumeBottom - volumeTop - 6));
-      const volumeY = volumeBottom - volumeHeight;
-      ctx.fillStyle = isUp ? "rgba(0, 255, 65, 0.58)" : "rgba(255, 0, 0, 0.58)";
-      ctx.fillRect(x - candleWidth / 2, volumeY, candleWidth, volumeHeight);
     });
 
     // Draw EMA lines and small period tags
@@ -319,10 +356,52 @@ export function LiveChart() {
       });
     }
 
-    // Volume label
-    ctx.fillStyle = "rgba(0, 255, 65, 0.9)";
-    ctx.font = '11px "JetBrains Mono", monospace';
-    ctx.fillText("VOL", padding + 4, volumeTop + 14);
+    if (bollingerEnabled && bollingerSeries.length > 0) {
+      const plotted = bollingerSeries
+        .map((p) => {
+          const ts = new Date(p.openTime).getTime();
+          const x = xByCandleTime.get(ts);
+          if (x == null) return null;
+          return {
+            x,
+            upper: normalizePrice(p.upper),
+            middle: normalizePrice(p.middle),
+            lower: normalizePrice(p.lower),
+          };
+        })
+        .filter((p): p is { x: number; upper: number; middle: number; lower: number } => p !== null);
+
+      if (plotted.length > 1) {
+        ctx.fillStyle = "rgba(90, 190, 255, 0.08)";
+        ctx.beginPath();
+        plotted.forEach((p, idx) => {
+          if (idx === 0) ctx.moveTo(p.x, p.upper);
+          else ctx.lineTo(p.x, p.upper);
+        });
+        for (let i = plotted.length - 1; i >= 0; i--) {
+          ctx.lineTo(plotted[i].x, plotted[i].lower);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        const drawBandLine = (key: "upper" | "middle" | "lower", color: string, dashed = false) => {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.25;
+          ctx.setLineDash(dashed ? [5, 4] : []);
+          ctx.beginPath();
+          plotted.forEach((p, idx) => {
+            if (idx === 0) ctx.moveTo(p.x, p[key]);
+            else ctx.lineTo(p.x, p[key]);
+          });
+          ctx.stroke();
+          ctx.setLineDash([]);
+        };
+
+        drawBandLine("upper", BOLLINGER_COLORS.upper);
+        drawBandLine("middle", BOLLINGER_COLORS.middle, true);
+        drawBandLine("lower", BOLLINGER_COLORS.lower);
+      }
+    }
 
     // Draw VWAP
     if (vwap > 0) {
@@ -418,14 +497,11 @@ export function LiveChart() {
       ctx.font = '12px "JetBrains Mono", monospace';
       ctx.fillText(currentPriceLabel, width - padding - 64, currentPriceY + 3);
 
-      const volumeText = `Vol ${formatNumber(latestCandle.Volume, 2)}`;
-      ctx.fillStyle = "rgba(0, 255, 65, 0.92)";
-      ctx.fillText(volumeText, width - padding - 120, volumeBottom - 6);
     }
 
     // Draw interactive crosshair guides
     if (hoverInfo && cursorMode === "crosshair") {
-      const crossY = Math.max(priceTop, Math.min(volumeBottom, hoverInfo.y));
+      const crossY = Math.max(priceTop, Math.min(priceBottom, hoverInfo.y));
       const crossX = Math.max(padding, Math.min(width - padding, hoverInfo.x));
       const crossPriceY = Math.max(priceTop, Math.min(priceBottom, hoverInfo.y));
       const crossPrice =
@@ -437,7 +513,7 @@ export function LiveChart() {
 
       ctx.beginPath();
       ctx.moveTo(crossX, priceTop);
-      ctx.lineTo(crossX, volumeBottom);
+      ctx.lineTo(crossX, priceBottom);
       ctx.stroke();
 
       ctx.beginPath();
@@ -456,7 +532,7 @@ export function LiveChart() {
       ctx.font = '11px "JetBrains Mono", monospace';
       ctx.fillText(priceLabel, width - padding - 64, crossPriceY + 4);
     }
-  }, [visibleCandles, vwap, visibleRange, latestCandle, chartSize, hoverInfo, cursorMode, emaEnabled, emaSeries, supportResistance]);
+  }, [visibleCandles, vwap, visibleRange, latestCandle, chartSize, hoverInfo, cursorMode, emaEnabled, emaSeries, bollingerEnabled, bollingerSeries, supportResistance]);
 
   const zoomIn = () => setZoomLevel((z) => Math.min(8, Number((z * 1.25).toFixed(2))));
   const zoomOut = () => setZoomLevel((z) => Math.max(1, Number((z / 1.25).toFixed(2))));
@@ -487,15 +563,12 @@ export function LiveChart() {
     const width = chartSize.width;
     const height = chartSize.height;
     const padding = 40;
-    const volumePanelHeight = Math.max(60, Math.floor(height * 0.22));
-    const panelGap = 10;
     const priceTop = padding;
-    const priceBottom = height - padding - volumePanelHeight - panelGap;
-    const volumeBottom = height - padding;
+    const priceBottom = height - padding;
     const chartWidth = width - padding * 2;
     const slotWidth = visibleCandles.length > 0 ? chartWidth / visibleCandles.length : 0;
 
-    return { padding, priceTop, priceBottom, volumeBottom, chartWidth, slotWidth };
+    return { padding, priceTop, priceBottom, chartWidth, slotWidth };
   };
 
   const onChartMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -503,9 +576,9 @@ export function LiveChart() {
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const { padding, slotWidth, priceTop, volumeBottom } = getChartGeometry();
+    const { padding, slotWidth, priceTop, priceBottom } = getChartGeometry();
 
-    if (x < padding || x > rect.width - padding || y < priceTop || y > volumeBottom || slotWidth <= 0) {
+    if (x < padding || x > rect.width - padding || y < priceTop || y > priceBottom || slotWidth <= 0) {
       setHoverInfo(null);
       return;
     }
@@ -525,10 +598,35 @@ export function LiveChart() {
   const onChartMouseLeave = () => setHoverInfo(null);
 
   return (
-    <div className="flex flex-col h-full border border-terminal-positive/20 rounded bg-black/40 overflow-hidden flex-1">
+    <div className="panel-energized grid h-full grid-rows-[auto_minmax(0,1fr)_88px_auto] border border-terminal-positive/20 rounded bg-black/40 overflow-hidden flex-1 hud-fade-in">
       {/* Header */}
-      <div className="flex flex-col gap-2 px-3 py-2 border-b border-terminal-positive/20 bg-black/70 xl:flex-row xl:items-center xl:justify-between">
-        <h2 className="text-xs font-bold text-terminal-positive tracking-wider">{currentSymbol.toUpperCase()} · CANDLESTICK</h2>
+      <div className="shrink-0 flex flex-col gap-2 px-3 py-2 border-b border-terminal-positive/20 bg-black/70 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex min-w-0 flex-col gap-2">
+          <h2 className="text-xs font-bold text-terminal-positive tracking-wider">{currentSymbol.toUpperCase()} · CANDLESTICK</h2>
+          <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono">
+            <div className="inline-flex items-center gap-2 border border-terminal-positive/25 bg-black/70 px-2 py-1 text-terminal-muted">
+              <span className="uppercase tracking-[0.18em] text-terminal-muted/80">Orderflow</span>
+              {orderFlow ? (
+                <>
+                  <span className={`inline-flex items-center gap-1 border px-1.5 py-0.5 ${orderFlow.currentImbalance.toLowerCase().includes("bear") ? "border-red-500/35 bg-red-950/20 text-red-400" : "border-terminal-positive/35 bg-terminal-positive/10 text-terminal-positive flow-pulse"}`}>
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+                    {orderFlow.currentImbalance}
+                  </span>
+                  <span className="text-terminal-positive">Bull {formatNumber(orderFlow.bullishRatio, 1)}%</span>
+                  <span className="text-red-400">Bear {formatNumber(orderFlow.bearishRatio, 1)}%</span>
+                  <span className="h-2 w-24 overflow-hidden border border-terminal-positive/15 bg-black/70">
+                    <span className="flex h-full w-full">
+                      <span className="flow-meter-rise bg-terminal-positive/70" style={{ width: `${Math.max(0, Math.min(100, orderFlow.bullishRatio))}%` }} />
+                      <span className="bg-red-500/70" style={{ width: `${Math.max(0, Math.min(100, orderFlow.bearishRatio))}%` }} />
+                    </span>
+                  </span>
+                </>
+              ) : (
+                <span className="text-terminal-muted">Awaiting live imbalance feed</span>
+              )}
+            </div>
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-1">
           {TIMEFRAMES.map((tf) => (
             <button
@@ -619,6 +717,17 @@ export function LiveChart() {
             )}
           </button>
           <button
+            onClick={() => setBollingerEnabled((prev) => !prev)}
+            className={`px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono border transition-all ${
+              bollingerEnabled
+                ? "border-terminal-positive text-terminal-positive bg-terminal-positive/10"
+                : "border-terminal-positive/30 text-terminal-muted hover:border-terminal-positive/50"
+            }`}
+            title={bollingerEnabled ? "Hide Bollinger Bands" : "Show Bollinger Bands"}
+          >
+            BB
+          </button>
+          <button
             onClick={zoomIn}
             className="px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono border border-terminal-positive/30 text-terminal-muted hover:border-terminal-positive/50"
             title="Zoom In"
@@ -631,7 +740,7 @@ export function LiveChart() {
       {/* Chart Canvas */}
       <div
         ref={containerRef}
-        className="flex-1 relative bg-black"
+        className="min-h-0 relative bg-black"
         onMouseMove={onChartMouseMove}
         onMouseLeave={onChartMouseLeave}
       >
@@ -650,25 +759,59 @@ export function LiveChart() {
           </div>
         )}
 
-        {emaEnabled && (
+        {(emaEnabled || bollingerEnabled) && (
           <div className="absolute left-3 bottom-3 bg-black/75 border border-terminal-positive/30 px-2 py-1 text-[10px] font-mono flex items-center gap-2">
-            <span className="text-terminal-muted">EMA</span>
-            <span style={{ color: EMA_COLORS[21] }}>21</span>
-            <span style={{ color: EMA_COLORS[50] }}>50</span>
+            {emaEnabled && (
+              <>
+                <span className="text-terminal-muted">EMA</span>
+                <span style={{ color: EMA_COLORS[21] }}>21</span>
+                <span style={{ color: EMA_COLORS[50] }}>50</span>
+              </>
+            )}
+            {bollingerEnabled && (
+              <>
+                <span className="text-terminal-muted">BB</span>
+                <span style={{ color: BOLLINGER_COLORS.upper }}>U</span>
+                <span style={{ color: BOLLINGER_COLORS.middle }}>M</span>
+                <span style={{ color: BOLLINGER_COLORS.lower }}>L</span>
+              </>
+            )}
           </div>
         )}
 
+        {/* Icon toolbar (right side) */}
+        <div className="absolute top-3 right-3 hidden md:flex flex-col items-end gap-1 z-20">
+          <button
+            onClick={() => setShowPriceOverlay((prev) => !prev)}
+            className={`h-8 w-8 flex items-center justify-center border text-terminal-positive transition-all ${
+              showPriceOverlay
+                ? "border-terminal-positive bg-terminal-positive/10"
+                : "border-terminal-positive/35 bg-black/65 hover:border-terminal-positive"
+            }`}
+            title={showPriceOverlay ? "Minimize price panel" : "Show price panel"}
+            aria-label={showPriceOverlay ? "Minimize price panel" : "Show price panel"}
+          >
+            {showPriceOverlay ? (
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M5 12h14" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            )}
+          </button>
+        </div>
+
         {/* Price/Stats Overlay */}
-        <div className="absolute top-4 right-4 hidden md:block text-xs font-mono space-y-1">
+        <div className="absolute top-12 right-3 hidden md:block text-xs font-mono space-y-1 z-10">
           <div className="bg-black/80 border border-terminal-positive/30 p-2">
             <div className="text-terminal-positive">Current Price</div>
             <div className="text-terminal-positive text-lg font-bold">
-              {latestCandle
-                ? formatNumber(latestCandle.ClosePrice, 2)
-                : "—"}
+              {latestCandle ? formatNumber(latestCandle.ClosePrice, 2) : "—"}
             </div>
 
-            {candleList.length > 0 && (
+            {showPriceOverlay && candleList.length > 0 && (
               <div className="mt-2 text-terminal-muted space-y-1 border-t border-terminal-positive/20 pt-2">
                 <div>
                   Bid: <span className="text-terminal-positive">{currentPrice ? formatNumber(currentPrice.Bid, 2) : "—"}</span>
@@ -688,6 +831,34 @@ export function LiveChart() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Dedicated volume strip (always visible) */}
+      <div className="border-t border-terminal-positive/40 bg-black/90 px-3 py-2">
+        <div className="mb-1 flex items-center justify-between text-[10px] font-mono">
+          <span className="text-terminal-positive">{volumeDisplay.hasNative ? "Volume" : "Volume*"}</span>
+          <span className="text-terminal-muted">
+            {volumeDisplay.hasNative ? "feed" : "estimated fallback"}
+          </span>
+        </div>
+        <div className="h-16 flex items-end gap-[1px]">
+          {volumeDisplay.bars.length > 0 ? (
+            volumeDisplay.bars.map((value, idx) => {
+              const candle = visibleCandles[idx];
+              const up = candle ? candle.ClosePrice >= candle.OpenPrice : true;
+              const height = Math.max(18, (value / volumeDisplay.max) * 100);
+              return (
+                <span
+                  key={`vol-strip-${idx}`}
+                  className={`flex-1 ${up ? "bg-terminal-positive/70" : "bg-red-500/70"}`}
+                  style={{ height: `${height}%` }}
+                />
+              );
+            })
+          ) : (
+            <span className="text-[10px] text-terminal-muted">No volume data</span>
+          )}
         </div>
       </div>
 

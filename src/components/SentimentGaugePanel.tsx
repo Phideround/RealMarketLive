@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMarketStore } from "@/store/market";
-import { fetchSentimentIndicator, SentimentIndicator, formatNumber, formatTime } from "@/lib/api";
+import { fetchSentimentIndicator, SentimentIndicator, formatNumber } from "@/lib/api";
 
 export function SentimentGaugePanel() {
   const { currentSymbol, currentTimeframe } = useMarketStore();
@@ -21,7 +21,7 @@ export function SentimentGaugePanel() {
       }
     };
 
-    load();
+    void load();
     const interval = setInterval(load, 60000);
 
     return () => {
@@ -50,8 +50,8 @@ export function SentimentGaugePanel() {
         <h3 className="text-xs font-bold text-terminal-positive tracking-wider">SENTIMENT GAUGE</h3>
       </div>
 
-      <div className="flex-1 p-3 grid grid-cols-[110px_1fr] gap-3 items-center">
-        <div className="relative w-[100px] h-[100px] mx-auto">
+      <div className="flex-1 p-3 flex items-center justify-center">
+        <div className="relative w-[128px] h-[128px] mx-auto">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
             <circle cx="50" cy="50" r={radius} stroke={gaugeStyle.base} strokeWidth="10" fill="none" />
             <circle
@@ -67,21 +67,14 @@ export function SentimentGaugePanel() {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center leading-tight">
-            <div className="text-xl font-bold" style={{ color: gaugeStyle.stroke }}>{formatNumber(clampedScore, 0)}</div>
+            <div className="text-2xl font-bold" style={{ color: gaugeStyle.stroke }}>
+              {formatNumber(clampedScore, 0)}
+            </div>
             <div className="text-[10px] text-terminal-muted">Fear/Greed</div>
-            <div className="text-[10px]" style={{ color: gaugeStyle.stroke }}>{gaugeStyle.label}</div>
+            <div className="text-[10px]" style={{ color: gaugeStyle.stroke }}>
+              {loading ? "Loading..." : gaugeStyle.label}
+            </div>
           </div>
-        </div>
-
-        <div className="text-[11px] space-y-1 font-mono">
-          <div className="text-terminal-positive font-bold">{data?.symbolCode ?? currentSymbol} · {data?.timeFrame ?? currentTimeframe}</div>
-          <div className="text-terminal-muted">Trend: <span className="text-terminal-positive">{data?.trend ?? (loading ? "Loading..." : "--")}</span></div>
-          <div className="text-terminal-muted">Sentiment: <span className="text-terminal-positive">{data?.sentiment ?? "--"}</span></div>
-          <div className="text-terminal-muted">RSI: <span className="text-terminal-positive">{data ? formatNumber(data.rsi, 2) : "--"}</span></div>
-          <div className="text-terminal-muted">MACD Hist: <span className="text-terminal-positive">{data ? formatNumber(data.macdHistogram, 6) : "--"}</span></div>
-          <div className="text-terminal-muted">EMA50/100: <span className="text-terminal-positive">{data ? `${formatNumber(data.ema50, 4)} / ${formatNumber(data.ema100, 4)}` : "--"}</span></div>
-          <div className="text-terminal-muted">Close: <span className="text-terminal-positive">{data ? formatNumber(data.currentClose, 4) : "--"}</span></div>
-          <div className="text-terminal-muted">At: <span className="text-terminal-positive">{data?.calculatedAt ? formatTime(data.calculatedAt) : "--"}</span></div>
         </div>
       </div>
     </div>

@@ -38,14 +38,20 @@ export function HeatmapPanel() {
             bid: 0,
             ask: 0,
             volume: 0,
-            trend: [] as number[],
+            historyPrices: [] as number[],
+            historyVolumes: [] as number[],
+            hasNativeHistoryVolumes: false,
             hasData: false,
           };
         }
 
         const change = ((price.ClosePrice - price.OpenPrice) / (price.OpenPrice || 1)) * 100;
-        const trend = (price.HistoryVolumes || []).slice(-12);
         const colorChange = price.DailyChangePercent ?? change;
+        const nativeHistoryVolumes = (price.HistoryVolumes ?? []).slice(-12);
+        const fallbackHistoryVolumes = Array.from({ length: 8 }, (_, i) => {
+          const ratio = (i + 1) / 8;
+          return price.Volume * ratio;
+        });
         return {
           symbol,
           marketClass,
@@ -57,7 +63,9 @@ export function HeatmapPanel() {
           bid: price.Bid,
           ask: price.Ask,
           volume: price.Volume,
-          trend,
+          historyPrices: (price.HistoryPrices ?? []).slice(-20),
+          historyVolumes: nativeHistoryVolumes.length > 0 ? nativeHistoryVolumes : fallbackHistoryVolumes,
+          hasNativeHistoryVolumes: nativeHistoryVolumes.length > 0,
           hasData: true,
         };
       })
@@ -110,7 +118,6 @@ export function HeatmapPanel() {
         {topCells.map((cell) => {
           const isActive = cell.symbol === currentSymbol;
           const isUp = cell.colorChange >= 0;
-          const trendMax = Math.max(...cell.trend, 1);
 
           return (
             <button
@@ -145,17 +152,70 @@ export function HeatmapPanel() {
                 Vol: <span className="text-terminal-positive">{cell.hasData ? formatNumber(cell.volume, 0) : "--"}</span>
               </div>
 
-              <div className="mt-1 h-4 flex items-end gap-[1px]">
-                {cell.hasData && cell.trend.length > 0 ? (
-                  cell.trend.map((v, i) => (
-                    <span
-                      key={`${cell.symbol}-trend-${i}`}
-                      className="flex-1 bg-terminal-positive/70"
-                      style={{ height: `${Math.max(15, (v / trendMax) * 100)}%` }}
-                    />
-                  ))
+              {/* HistoryPrices SVG sparkline */}
+              <div className="mt-1">
+                <div className="text-[10px] text-terminal-muted font-mono mb-0.5">
+                  Prices:{" "}
+                  {cell.hasData && cell.historyPrices.length > 0 ? (
+                    <span className={cell.historyPrices[cell.historyPrices.length - 1] >= cell.historyPrices[0] ? "text-terminal-positive" : "text-red-400"}>
+                      {formatNumber(cell.historyPrices[0], 2)} → {formatNumber(cell.historyPrices[cell.historyPrices.length - 1], 2)}
+                    </span>
+                  ) : (
+                    <span className="text-terminal-muted">--</span>
+                  )}
+                </div>
+                {cell.hasData && cell.historyPrices.length > 1 ? (
+                  (() => {
+                    const pts = cell.historyPrices;
+                    const pMin = Math.min(...pts);
+                    const pMax = Math.max(...pts);
+                    const pRange = Math.max(0.00001, pMax - pMin);
+                    const W = 100;
+                    const H = 22;
+                    const step = W / (pts.length - 1);
+                    const trendUp = pts[pts.length - 1] >= pts[0];
+                    const lineColor = trendUp ? "#00FF41" : "#ff6060";
+                    const pathD = pts
+                      .map((v, i) => {
+                        const x = (i * step).toFixed(1);
+                        const y = (H - ((v - pMin) / pRange) * (H - 2) - 1).toFixed(1);
+                        return `${i === 0 ? "M" : "L"}${x},${y}`;
+                      })
+                      .join(" ");
+                    const lastX = ((pts.length - 1) * step).toFixed(1);
+                    const lastY = (H - ((pts[pts.length - 1] - pMin) / pRange) * (H - 2) - 1).toFixed(1);
+                    return (
+                      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-5" preserveAspectRatio="none">
+                        <path d={pathD} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                        <circle cx={lastX} cy={lastY} r="2" fill={lineColor} />
+                      </svg>
+                    );
+                  })()
                 ) : (
-                  <span className="text-[10px] text-terminal-muted">No trend</span>
+                  <div className="h-5 flex items-center text-[10px] text-terminal-muted">No price history</div>
+                )}
+              </div>
+
+              {/* HistoryVolumes bar chart */}
+              <div className="mt-1 text-[10px] text-terminal-muted font-mono">
+                Vol Hist: <span className="text-terminal-positive">{cell.hasData ? (cell.hasNativeHistoryVolumes ? `${cell.historyVolumes.length} pts` : "fallback") : "--"}</span>
+              </div>
+              <div className="mt-1 h-3 flex items-end gap-[1px]">
+                {cell.hasData && cell.historyVolumes.length > 0 ? (
+                  (() => {
+                    const vMax = Math.max(...cell.historyVolumes, 1);
+                    const vMin = Math.min(...cell.historyVolumes);
+                    const vRange = Math.max(0.00001, vMax - vMin);
+                    return cell.historyVolumes.map((v, i) => (
+                      <span
+                        key={`${cell.symbol}-vol-${i}`}
+                        className="flex-1 bg-terminal-positive/40"
+                        style={{ height: `${Math.max(15, ((v - vMin) / vRange) * 100)}%` }}
+                      />
+                    ));
+                  })()
+                ) : (
+                  <span className="text-[10px] text-terminal-muted">No volume history</span>
                 )}
               </div>
             </button>

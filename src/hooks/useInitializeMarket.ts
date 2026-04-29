@@ -19,6 +19,11 @@ export function useInitializeMarket() {
   const { setApiHealth, addLog } = useConnectionStore();
   const initRef = useRef(false);
 
+  const summarizeError = (error: unknown) => {
+    if (error instanceof Error) return error.message;
+    return "Unknown error";
+  };
+
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
@@ -28,6 +33,7 @@ export function useInitializeMarket() {
         timestamp: new Date().toISOString(),
         level: "info",
         message: "⟳ Connecting to RealMarketAPI...",
+        details: "Boot sequence: health check, symbol load, REST snapshot seed, then live WebSocket handoff.",
       });
 
       // Check API health
@@ -39,6 +45,7 @@ export function useInitializeMarket() {
           timestamp: new Date().toISOString(),
           level: "warning",
           message: "⚠ API health check failed – feed may be degraded",
+          details: "Health endpoint returned degraded status. REST snapshots may still load, but live metrics can lag.",
         });
       }
 
@@ -56,6 +63,7 @@ export function useInitializeMarket() {
             timestamp: new Date().toISOString(),
             level: "success",
             message: `✓ Loaded ${symbols.length} symbols (XAUUSD/BTCUSD prioritized)`,
+            details: `Classes: ${Array.from(new Set(symbols.map((s) => s.marketClass))).join(", ")} | Head: ${prioritized.slice(0, 6).map((s) => s.symbolCode).join(", ")}`,
           });
         } else {
           throw new Error("Empty symbol list returned");
@@ -67,6 +75,7 @@ export function useInitializeMarket() {
           timestamp: new Date().toISOString(),
           level: "warning",
           message: "⚠ Using default symbol list (fetch failed)",
+          details: `Fallback count ${FALLBACK_SYMBOLS.length} | Cause: ${summarizeError(error)}`,
         });
       }
 
@@ -74,6 +83,8 @@ export function useInitializeMarket() {
       try {
         const prices = await fetchMarketPrices();
         if (prices.length > 0) {
+          const withHistoryPrices = prices.filter((price) => Array.isArray(price.HistoryPrices) && price.HistoryPrices.length > 0).length;
+          const withHistoryVolumes = prices.filter((price) => Array.isArray(price.HistoryVolumes) && price.HistoryVolumes.length > 0).length;
           prices.forEach((price) => {
             updatePrice(price.SymbolCode, { ...price, LastUpdate: Date.now() });
           });
@@ -81,22 +92,31 @@ export function useInitializeMarket() {
             timestamp: new Date().toISOString(),
             level: "success",
             message: `✓ Seeded prices for ${prices.length} symbols`,
+            details: `HistoryPrices ${withHistoryPrices}/${prices.length} | HistoryVolumes ${withHistoryVolumes}/${prices.length} | Head: ${prices.slice(0, 5).map((price) => `${price.SymbolCode} ${price.ClosePrice}`).join(" | ")}`,
           });
         } else {
           addLog({
             timestamp: new Date().toISOString(),
             level: "warning",
             message: "⚠ Market snapshot returned no rows",
+            details: "REST market price endpoint responded successfully but returned an empty array.",
           });
         }
       } catch (error) {
         console.error("Failed to seed market prices:", error);
+        addLog({
+          timestamp: new Date().toISOString(),
+          level: "error",
+          message: "✗ Failed to seed market snapshot",
+          details: summarizeError(error),
+        });
       }
 
       addLog({
         timestamp: new Date().toISOString(),
         level: "success",
         message: "✓ Market initialized – WebSocket feeds starting",
+        details: "Initial REST bootstrap completed. Live price, candle, and orderflow sockets can now replace snapshot state.",
       });
     };
 

@@ -9,6 +9,7 @@ export interface SystemLog {
   timestamp: string;
   level: "info" | "warning" | "error" | "success";
   message: string;
+  details?: string;
 }
 
 interface ConnectionStore {
