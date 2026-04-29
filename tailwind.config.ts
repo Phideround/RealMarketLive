@@ -12,10 +12,10 @@ const config: Config = {
         terminal: {
           bg: "#000000",
           text: "#00FF41",
-          muted: "#666666",
-          accent: "#00E5FF",
+          muted: "#6ea67a",
+          accent: "#39ff6a",
           positive: "#00FF41",
-          negative: "#FFB100",
+          negative: "#ff4d4d",
           neutral: "#000000",
         },
       },

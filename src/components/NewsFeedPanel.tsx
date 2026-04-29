@@ -74,7 +74,7 @@ export function NewsFeedPanel() {
           <h3 className="text-xs font-bold text-terminal-accent tracking-wider">NEWS FEED</h3>
           <button
             onClick={() => setShowAllModal(true)}
-            className="text-[10px] px-2 py-1 rounded border border-terminal-accent/40 text-terminal-accent hover:bg-terminal-accent/10"
+            className="text-[10px] px-2 py-1 border border-terminal-positive/40 text-terminal-positive hover:bg-terminal-positive/10"
             title="Open full news view"
           >
             ▦ All
@@ -103,7 +103,7 @@ export function NewsFeedPanel() {
               <div className="text-[10px] text-terminal-positive font-bold uppercase tracking-wide">{item.source}</div>
               <div className="text-[10px] text-terminal-muted">{formatTime(item.timestamp)}</div>
             </div>
-            <h4 className="text-xs text-terminal-accent mt-1">{item.title}</h4>
+            <h4 className="text-xs text-terminal-positive mt-1">{item.title}</h4>
             {item.summary && <p className="text-[11px] text-terminal-muted mt-1 leading-relaxed">{item.summary}</p>}
             <a
               href={item.link}
@@ -118,7 +118,7 @@ export function NewsFeedPanel() {
       </div>
 
       {showAllModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-[1px] p-6" onClick={() => setShowAllModal(false)}>
+        <div className="fixed inset-0 z-50 bg-black/85 p-6" onClick={() => setShowAllModal(false)}>
           <div
             className="h-full w-full rounded border border-terminal-positive/30 bg-black/95 flex flex-col"
             onClick={(e) => e.stopPropagation()}
@@ -127,7 +127,7 @@ export function NewsFeedPanel() {
               <h3 className="text-sm font-bold text-terminal-accent tracking-wider">FULL NEWS FEED</h3>
               <button
                 onClick={() => setShowAllModal(false)}
-                className="text-xs px-3 py-1 border border-terminal-accent/40 rounded text-terminal-accent hover:bg-terminal-accent/10"
+                className="text-xs px-3 py-1 border border-terminal-positive/40 text-terminal-positive hover:bg-terminal-positive/10"
               >
                 Close
               </button>
@@ -140,13 +140,13 @@ export function NewsFeedPanel() {
                     <div className="text-[10px] text-terminal-positive font-bold uppercase tracking-wide">{item.source}</div>
                     <div className="text-[10px] text-terminal-muted">{formatTime(item.timestamp)}</div>
                   </div>
-                  <h4 className="text-sm text-terminal-accent mt-1">{item.title}</h4>
+                  <h4 className="text-sm text-terminal-positive mt-1">{item.title}</h4>
                   {item.summary && <p className="text-[12px] text-terminal-muted mt-1 leading-relaxed">{item.summary}</p>}
                   <a
                     href={item.link}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-block mt-2 text-[11px] text-terminal-positive hover:text-terminal-accent"
+                    className="inline-block mt-2 text-[11px] text-terminal-positive hover:text-terminal-positive/90"
                   >
                     Open article
                   </a>

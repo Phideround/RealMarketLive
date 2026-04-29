@@ -19,16 +19,14 @@ export function TickStream() {
     <div className="flex flex-col h-full border-l border-terminal-positive/30 bg-black/50">
       {/* Header */}
       <div className="sticky top-0 bg-black/80 border-b border-terminal-positive/30 px-3 py-2 text-xs font-bold">
-        <div className="text-terminal-accent">TICK STREAM [Live Feed]</div>
+        <div className="text-terminal-positive">TICK STREAM [Live Feed]</div>
       </div>
 
       {/* Ticks */}
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto font-mono text-xs space-y-0"
-        style={{
-          background: "linear-gradient(to bottom, rgba(0, 255, 0, 0.02), rgba(0, 0, 0, 0.1))",
-        }}
+        style={{ background: "rgba(0, 0, 0, 0.45)" }}
       >
         {tickHistory.length === 0 ? (
           <div className="p-3 text-terminal-muted text-center">
@@ -66,7 +64,7 @@ export function TickStream() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <span className="text-terminal-muted">[{displayTime}]</span>{" "}
-                    <span className="text-terminal-accent font-bold">{tick.symbol}</span>
+                    <span className="text-terminal-positive font-bold">{tick.symbol}</span>
                     <span className={`${directionColor} font-bold`}> {directionSymbol} </span>
                     <span className="text-terminal-positive font-mono">{price}</span>
                   </div>

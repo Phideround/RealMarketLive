@@ -12,8 +12,10 @@ import { SignalPanel } from "./SignalPanel";
 import { HeatmapPanel } from "./HeatmapPanel";
 import { NewsFeedPanel } from "./NewsFeedPanel";
 import { SentimentGaugePanel } from "./SentimentGaugePanel";
+import { LatencyCoachPanel } from "./LatencyCoachPanel";
+import { TopMoversPanel } from "./TopMoversPanel";
 
-const PANEL_FRAME = "overflow-hidden rounded-[1.4rem] border border-white/10 bg-[linear-gradient(180deg,rgba(14,18,26,0.94),rgba(8,11,18,0.94))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-sm";
+const PANEL_FRAME = "overflow-hidden rounded-none border border-terminal-positive/25 bg-black";
 
 export function TerminalLayout() {
   // Initialize market data (REST: health check + symbol list)
@@ -97,30 +99,30 @@ export function TerminalLayout() {
       <Header />
 
       {/* Main Content Grid */}
-      <div className="flex-1 overflow-hidden px-3 pb-3">
-        <div className="grid h-full grid-cols-[23rem_minmax(0,1.4fr)_29rem] gap-3">
-          <div className={PANEL_FRAME}>
+      <div className="flex-1 overflow-y-auto px-3 pb-3 lg:overflow-hidden">
+        <div className="flex min-h-full flex-col gap-3 lg:grid lg:h-full lg:grid-cols-[23rem_minmax(0,1.4fr)_29rem]">
+          <div className={`${PANEL_FRAME} hidden lg:block`}>
             <SignalPanel />
           </div>
 
-          <div className={`${PANEL_FRAME} flex min-w-0 flex-col`}>
-            <div className="flex items-center justify-between border-b border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0))] px-4 py-3">
+          <div className={`${PANEL_FRAME} flex min-w-0 flex-col min-h-[24rem] lg:min-h-0`}>
+            <div className="flex items-center justify-between border-b border-terminal-positive/25 bg-black px-4 py-3">
               <div>
                 <div className="text-[11px] uppercase tracking-[0.24em] text-terminal-muted">Focus Market</div>
                 <div className="mt-1 text-sm text-terminal-muted">
-                  <span className="font-bold text-terminal-accent">{currentSymbol}</span> on <span className="font-semibold text-terminal-positive">{currentTimeframe}</span>
+                  <span className="font-bold text-terminal-positive">{currentSymbol}</span> on <span className="font-semibold text-terminal-positive">{currentTimeframe}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-xs">
                 <button
                   onClick={() => setCurrentSymbol("XAUUSD")}
-                  className={`rounded-full border px-3 py-1.5 transition-all ${currentSymbol === "XAUUSD" ? "border-terminal-accent text-terminal-accent bg-terminal-accent/10 shadow-[0_0_20px_rgba(0,229,255,0.08)]" : "border-white/10 text-terminal-muted hover:border-terminal-positive/30 hover:text-terminal-positive"}`}
+                  className={`hidden sm:inline-block border px-3 py-1.5 transition-all ${currentSymbol === "XAUUSD" ? "border-terminal-positive text-terminal-positive bg-terminal-positive/10" : "border-terminal-positive/25 text-terminal-muted hover:border-terminal-positive/40 hover:text-terminal-positive"}`}
                 >
                   XAUUSD
                 </button>
                 <button
                   onClick={() => setCurrentSymbol("BTCUSD")}
-                  className={`rounded-full border px-3 py-1.5 transition-all ${currentSymbol === "BTCUSD" ? "border-terminal-accent text-terminal-accent bg-terminal-accent/10 shadow-[0_0_20px_rgba(0,229,255,0.08)]" : "border-white/10 text-terminal-muted hover:border-terminal-positive/30 hover:text-terminal-positive"}`}
+                  className={`hidden sm:inline-block border px-3 py-1.5 transition-all ${currentSymbol === "BTCUSD" ? "border-terminal-positive text-terminal-positive bg-terminal-positive/10" : "border-terminal-positive/25 text-terminal-muted hover:border-terminal-positive/40 hover:text-terminal-positive"}`}
                 >
                   BTCUSD
                 </button>
@@ -129,7 +131,7 @@ export function TerminalLayout() {
                     setCurrentSymbol("XAUUSD");
                     setCurrentTimeframe("H1");
                   }}
-                  className="rounded-full border border-terminal-accent/40 bg-terminal-accent/5 px-3 py-1.5 text-terminal-accent transition-all hover:bg-terminal-accent/10"
+                  className="border border-terminal-positive/35 bg-terminal-positive/10 px-2 py-1 sm:px-3 sm:py-1.5 text-terminal-positive transition-all hover:bg-terminal-positive/15"
                   title="Reset to default view"
                 >
                   Reset View
@@ -137,13 +139,13 @@ export function TerminalLayout() {
               </div>
             </div>
             <div className="min-h-0 flex-1 p-2">
-              <div className="h-full overflow-hidden rounded-[1rem] border border-white/8 bg-black/35">
+              <div className="h-full overflow-hidden rounded-none border border-terminal-positive/20 bg-black">
                 <LiveChart />
               </div>
             </div>
           </div>
 
-          <div className="grid min-w-0 grid-rows-[1.1fr_1fr_0.92fr] gap-3 overflow-hidden">
+          <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-1 lg:grid-rows-[1.1fr_1fr_0.92fr] lg:overflow-hidden">
             <div className={PANEL_FRAME}>
               <HeatmapPanel />
             </div>
@@ -158,19 +160,38 @@ export function TerminalLayout() {
       </div>
 
       {/* Bottom: Command/Diagnostics Panel */}
-      <div className="h-[17.5rem] overflow-hidden px-3 pb-3">
+      <div className="px-3 pb-3">
+        <div className="grid h-44 grid-cols-1 gap-3 lg:h-28 lg:grid-cols-2">
+          <LatencyCoachPanel />
+          <TopMoversPanel />
+        </div>
+      </div>
+
+      <div className="h-56 overflow-hidden px-3 pb-3 lg:h-[17.5rem]">
         <BottomPanel />
       </div>
+
+      <footer className="px-3 pb-2 text-[10px] text-terminal-muted text-center">
+        Powered by{" "}
+        <a
+          href="https://realmarketapi.com?utm_source=realmarketlive"
+          target="_blank"
+          rel="noreferrer"
+          className="text-terminal-positive hover:text-terminal-positive/90"
+        >
+          RealMarketAPI
+        </a>
+      </footer>
 
       {/* Keyboard Shortcuts Hint */}
       <div
         className="fixed bottom-4 right-4 hidden pointer-events-none lg:block"
         style={{
           fontFamily: '"JetBrains Mono", monospace',
-          textShadow: "0 0 8px rgba(0, 255, 0, 0.08)",
+          textShadow: "0 0 6px rgba(0, 255, 65, 0.14)",
         }}
       >
-        <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(13,18,26,0.92),rgba(7,10,15,0.92))] px-3 py-2 text-xs text-terminal-muted shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-sm">
+        <div className="border border-terminal-positive/25 bg-black px-3 py-2 text-xs text-terminal-muted">
           <div className="mb-1 uppercase tracking-[0.2em] text-[10px] text-terminal-muted/80">Shortcuts</div>
           <div>1-6: Timeframe</div>
           <div>S: Next Symbol</div>

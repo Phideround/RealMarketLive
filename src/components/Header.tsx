@@ -1,12 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useConnectionStore } from "@/store/connection";
-import { formatTime } from "@/lib/api";
+import { useMarketStore } from "@/store/market";
+import { formatNumber, formatTime } from "@/lib/api";
 
 export function Header() {
   const { wsConnected, latency, apiHealth } = useConnectionStore();
+  const { symbols, priceData } = useMarketStore();
   const [currentTime, setCurrentTime] = useState<string | null>(null);
+
+  const marketTape = useMemo(() => {
+    return symbols
+      .map((symbolInfo) => {
+        const symbol = symbolInfo.symbolCode;
+        const price = priceData[symbol];
+        if (!price) return null;
+
+        const rawChange =
+          price.DailyChangePercent ??
+          ((price.ClosePrice - price.OpenPrice) / (price.OpenPrice || 1)) * 100;
+
+        return {
+          symbol,
+          close: price.ClosePrice,
+          change24h: rawChange,
+        };
+      })
+      .filter((row): row is { symbol: string; close: number; change24h: number } => row !== null);
+  }, [symbols, priceData]);
 
   useEffect(() => {
     // Set initial time after hydration
@@ -22,7 +44,7 @@ export function Header() {
 
   const healthColor = {
     ok: "text-terminal-positive",
-    degraded: "text-terminal-accent",
+    degraded: "text-terminal-positive",
     error: "text-terminal-negative",
   }[apiHealth];
 
@@ -33,13 +55,13 @@ export function Header() {
   }[apiHealth];
 
   return (
-    <header className="bg-black border-b border-terminal-positive/30 px-4 py-3 font-mono">
-      <div className="flex items-center justify-between">
+    <header className="bg-black border-b border-terminal-positive/30 px-3 py-3 font-mono md:px-4">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         {/* Left: Title */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 lg:gap-8">
           <button
             onClick={() => window.location.reload()}
-            className="text-2xl font-bold text-terminal-positive glowing hover:text-terminal-accent transition-colors cursor-pointer"
+            className="text-2xl font-bold text-terminal-positive hover:text-terminal-positive/90 transition-colors cursor-pointer"
             title="Refresh application"
           >
             ▲ RealMarketLive
@@ -50,7 +72,7 @@ export function Header() {
         </div>
 
         {/* Right: Status Indicators */}
-        <div className="flex items-center gap-8 text-xs">
+        <div className="flex flex-wrap items-center gap-3 text-xs lg:gap-8">
           {/* WebSocket Status */}
           <div className="flex items-center gap-2">
             <span className={wsStatusColor}>{wsStatusText}</span>
@@ -60,7 +82,7 @@ export function Header() {
           {/* Latency */}
           <div className="flex items-center gap-2">
             <span className="text-terminal-muted">Latency:</span>
-            <span className={latency > 100 ? "text-terminal-accent" : "text-terminal-positive"}>
+            <span className={latency > 100 ? "text-terminal-negative" : "text-terminal-positive"}>
               {latency}ms
             </span>
             <span className="text-terminal-muted">|</span>
@@ -81,10 +103,19 @@ export function Header() {
         </div>
       </div>
 
-      {/* Compliance Notice */}
-      <div className="mt-2 text-xs text-terminal-accent border-t border-terminal-positive/20 pt-2">
-        ⚠ This platform provides market data and signals for informational purposes only.
-        It does not support trading. Always conduct your own research.
+      <div className="mt-2 border-t border-terminal-positive/20 pt-2 overflow-hidden">
+        <div className="ticker-track text-[11px] text-terminal-muted">
+          {[...marketTape, ...marketTape].map((item, index) => (
+            <span key={`${item.symbol}-${index}`} className="mr-8 whitespace-nowrap">
+              <span className={item.change24h >= 0 ? "text-terminal-positive font-bold" : "text-terminal-negative font-bold"}>{item.symbol}</span>
+              <span className={`mx-2 ${item.change24h >= 0 ? "text-terminal-positive" : "text-terminal-negative"}`}>{formatNumber(item.close, 2)}</span>
+              <span className={item.change24h >= 0 ? "text-terminal-positive" : "text-terminal-negative"}>
+                {item.change24h >= 0 ? "+" : ""}
+                {formatNumber(item.change24h, 2)}%
+              </span>
+            </span>
+          ))}
+        </div>
       </div>
     </header>
   );

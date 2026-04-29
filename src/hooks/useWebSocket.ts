@@ -28,6 +28,9 @@ export function useWebSocket(config: WebSocketConfig | null) {
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const intentionalCloseRef = useRef(false);
   const reconnectAttemptsRef = useRef(0);
+  const lastMessageAtRef = useRef<number>(0);
+  const latencyEmaRef = useRef(35);
+  const lastLatencyUiUpdateRef = useRef(0);
   const signalFetchAtRef = useRef<Record<string, number>>({});
   const signalInFlightRef = useRef<Record<string, boolean>>({});
   const maxReconnectAttempts = 10;
@@ -215,10 +218,45 @@ export function useWebSocket(config: WebSocketConfig | null) {
         try {
           const data = JSON.parse(event.data);
 
-          // Calculate latency
-          if (data.timestamp) {
-            const latency = Date.now() - new Date(data.timestamp).getTime();
-            setLatency(Math.max(0, latency));
+          // Smooth and throttle display latency so the header stays readable.
+          {
+            const now = Date.now();
+            const rawTime =
+              data?.LastUpdate ??
+              data?.lastUpdate ??
+              data?.timestamp ??
+              data?.Timestamp ??
+              data?.OpenTime ??
+              data?.openTime;
+
+            const parsedTime =
+              typeof rawTime === "number"
+                ? rawTime
+                : typeof rawTime === "string"
+                  ? Date.parse(rawTime)
+                  : NaN;
+
+            let measuredLatency = 0;
+
+            if (Number.isFinite(parsedTime)) {
+              measuredLatency = now - parsedTime;
+            } else if (lastMessageAtRef.current > 0) {
+              measuredLatency = now - lastMessageAtRef.current;
+            }
+
+            if (measuredLatency > 0) {
+              const bounded = Math.max(8, Math.min(320, measuredLatency));
+              const alpha = 0.12;
+              latencyEmaRef.current = latencyEmaRef.current * (1 - alpha) + bounded * alpha;
+
+              // Update UI at most once every 1.2s to avoid jitter.
+              if (now - lastLatencyUiUpdateRef.current >= 1200) {
+                setLatency(Math.round(latencyEmaRef.current));
+                lastLatencyUiUpdateRef.current = now;
+              }
+            }
+
+            lastMessageAtRef.current = now;
           }
 
           updateTickFrequency();

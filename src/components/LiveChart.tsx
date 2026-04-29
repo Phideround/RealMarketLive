@@ -10,8 +10,8 @@ const TIMEFRAMES = ["M1", "M5", "M15", "H1", "H4", "D1"];
 const MIN_VISIBLE_CANDLES = 20;
 const EMA_PERIODS = [21, 50] as const;
 const EMA_COLORS: Record<(typeof EMA_PERIODS)[number], string> = {
-  21: "#00E5FF",
-  50: "#FFB100",
+  21: "#00FF41",
+  50: "#FFFFFF",
 };
 type CursorMode = "cursor" | "crosshair";
 
@@ -320,7 +320,7 @@ export function LiveChart() {
     }
 
     // Volume label
-    ctx.fillStyle = "rgba(0, 229, 255, 0.9)";
+    ctx.fillStyle = "rgba(0, 255, 65, 0.9)";
     ctx.font = '11px "JetBrains Mono", monospace';
     ctx.fillText("VOL", padding + 4, volumeTop + 14);
 
@@ -401,7 +401,7 @@ export function LiveChart() {
       const currentPriceY = Math.max(priceTop, Math.min(priceBottom, normalizePrice(latestCandle.ClosePrice)));
       const currentPriceLabel = formatNumber(latestCandle.ClosePrice, 2);
 
-      ctx.strokeStyle = "rgba(0, 229, 255, 0.95)";
+      ctx.strokeStyle = "rgba(0, 255, 65, 0.95)";
       ctx.lineWidth = 1;
       ctx.setLineDash([8, 4]);
       ctx.beginPath();
@@ -410,11 +410,11 @@ export function LiveChart() {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.fillStyle = "rgba(0, 229, 255, 0.2)";
+      ctx.fillStyle = "rgba(0, 255, 65, 0.2)";
       ctx.fillRect(width - padding - 70, currentPriceY - 10, 70, 18);
-      ctx.strokeStyle = "rgba(0, 229, 255, 0.85)";
+      ctx.strokeStyle = "rgba(0, 255, 65, 0.85)";
       ctx.strokeRect(width - padding - 70, currentPriceY - 10, 70, 18);
-      ctx.fillStyle = "#00E5FF";
+      ctx.fillStyle = "#00FF41";
       ctx.font = '12px "JetBrains Mono", monospace';
       ctx.fillText(currentPriceLabel, width - padding - 64, currentPriceY + 3);
 
@@ -431,7 +431,7 @@ export function LiveChart() {
       const crossPrice =
         maxPrice - ((crossPriceY - priceTop) / (priceBottom - priceTop || 1)) * (maxPrice - minPrice || 1);
 
-      ctx.strokeStyle = "rgba(0, 229, 255, 0.75)";
+      ctx.strokeStyle = "rgba(0, 255, 65, 0.75)";
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
 
@@ -450,13 +450,13 @@ export function LiveChart() {
       const priceLabel = formatNumber(crossPrice, 2);
       ctx.fillStyle = "rgba(0, 0, 0, 0.88)";
       ctx.fillRect(width - padding - 70, crossPriceY - 9, 70, 18);
-      ctx.strokeStyle = "rgba(0, 229, 255, 0.85)";
+      ctx.strokeStyle = "rgba(0, 255, 65, 0.85)";
       ctx.strokeRect(width - padding - 70, crossPriceY - 9, 70, 18);
-      ctx.fillStyle = "#00E5FF";
+      ctx.fillStyle = "#00FF41";
       ctx.font = '11px "JetBrains Mono", monospace';
       ctx.fillText(priceLabel, width - padding - 64, crossPriceY + 4);
     }
-  }, [visibleCandles, vwap, visibleRange, latestCandle, chartSize, hoverInfo, cursorMode, emaSeries, supportResistance]);
+  }, [visibleCandles, vwap, visibleRange, latestCandle, chartSize, hoverInfo, cursorMode, emaEnabled, emaSeries, supportResistance]);
 
   const zoomIn = () => setZoomLevel((z) => Math.min(8, Number((z * 1.25).toFixed(2))));
   const zoomOut = () => setZoomLevel((z) => Math.max(1, Number((z / 1.25).toFixed(2))));
@@ -527,14 +527,14 @@ export function LiveChart() {
   return (
     <div className="flex flex-col h-full border border-terminal-positive/20 rounded bg-black/40 overflow-hidden flex-1">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-terminal-positive/20 bg-black/70">
-        <h2 className="text-xs font-bold text-terminal-accent tracking-wider">{currentSymbol.toUpperCase()} · CANDLESTICK</h2>
-        <div className="flex items-center gap-1">
+      <div className="flex flex-col gap-2 px-3 py-2 border-b border-terminal-positive/20 bg-black/70 xl:flex-row xl:items-center xl:justify-between">
+        <h2 className="text-xs font-bold text-terminal-positive tracking-wider">{currentSymbol.toUpperCase()} · CANDLESTICK</h2>
+        <div className="flex flex-wrap items-center gap-1">
           {TIMEFRAMES.map((tf) => (
             <button
               key={tf}
               onClick={() => setCurrentTimeframe(tf)}
-              className={`px-2 py-1 text-xs font-mono rounded transition-all ${
+              className={`px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono transition-all ${
                 currentTimeframe === tf
                   ? "bg-terminal-positive/30 border border-terminal-positive text-terminal-positive"
                   : "border border-terminal-positive/30 text-terminal-muted hover:border-terminal-positive/50"
@@ -546,21 +546,21 @@ export function LiveChart() {
           <div className="w-px h-5 bg-terminal-positive/30 mx-1" />
           <button
             onClick={zoomOut}
-            className="px-2 py-1 text-xs font-mono rounded border border-terminal-positive/30 text-terminal-muted hover:border-terminal-positive/50"
+            className="px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono border border-terminal-positive/30 text-terminal-muted hover:border-terminal-positive/50"
             title="Zoom Out"
           >
             -
           </button>
           <button
             onClick={resetZoom}
-            className="px-2 py-1 text-xs font-mono rounded border border-terminal-accent/40 text-terminal-accent hover:border-terminal-accent"
+            className="px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono border border-terminal-positive/40 text-terminal-positive hover:border-terminal-positive"
             title="Reset Zoom"
           >
             {zoomLevel.toFixed(1)}x
           </button>
           <button
             onClick={resetView}
-            className="px-2 py-1 text-xs font-mono rounded border border-terminal-accent/50 text-terminal-accent hover:bg-terminal-accent/10"
+            className="px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono border border-terminal-positive/50 text-terminal-positive hover:bg-terminal-positive/10"
             title="Reset to H1 and 1x zoom"
           >
             <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -571,9 +571,9 @@ export function LiveChart() {
           <div className="w-px h-5 bg-terminal-positive/30 mx-1" />
           <button
             onClick={() => setCursorMode("cursor")}
-            className={`px-2 py-1 text-xs font-mono rounded border transition-all ${
+            className={`px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono border transition-all ${
               cursorMode === "cursor"
-                ? "border-terminal-accent text-terminal-accent bg-terminal-accent/10"
+                ? "border-terminal-positive text-terminal-positive bg-terminal-positive/10"
                 : "border-terminal-positive/30 text-terminal-muted hover:border-terminal-positive/50"
             }`}
             title="Pointer mode"
@@ -584,9 +584,9 @@ export function LiveChart() {
           </button>
           <button
             onClick={() => setCursorMode("crosshair")}
-            className={`px-2 py-1 text-xs font-mono rounded border transition-all ${
+            className={`px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono border transition-all ${
               cursorMode === "crosshair"
-                ? "border-terminal-accent text-terminal-accent bg-terminal-accent/10"
+                ? "border-terminal-positive text-terminal-positive bg-terminal-positive/10"
                 : "border-terminal-positive/30 text-terminal-muted hover:border-terminal-positive/50"
             }`}
             title="Crosshair mode"
@@ -598,9 +598,9 @@ export function LiveChart() {
           </button>
           <button
             onClick={() => setEmaEnabled((prev) => !prev)}
-            className={`px-2 py-1 text-xs font-mono rounded border transition-all ${
+            className={`px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono border transition-all ${
               emaEnabled
-                ? "border-terminal-accent text-terminal-accent bg-terminal-accent/10"
+                ? "border-terminal-positive text-terminal-positive bg-terminal-positive/10"
                 : "border-terminal-positive/30 text-terminal-muted hover:border-terminal-positive/50"
             }`}
             title={emaEnabled ? "Hide all EMA" : "Show all EMA"}
@@ -620,7 +620,7 @@ export function LiveChart() {
           </button>
           <button
             onClick={zoomIn}
-            className="px-2 py-1 text-xs font-mono rounded border border-terminal-positive/30 text-terminal-muted hover:border-terminal-positive/50"
+            className="px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono border border-terminal-positive/30 text-terminal-muted hover:border-terminal-positive/50"
             title="Zoom In"
           >
             +
@@ -641,8 +641,8 @@ export function LiveChart() {
         />
 
         {hoverInfo && (
-          <div className="absolute left-3 top-3 bg-black/85 border border-terminal-accent/40 rounded px-3 py-2 text-[11px] font-mono space-y-1">
-            <div className="text-terminal-accent font-bold">Candle #{hoverInfo.index + 1}</div>
+          <div className="absolute left-3 top-3 hidden md:block bg-black/85 border border-terminal-positive/40 px-3 py-2 text-[11px] font-mono space-y-1">
+            <div className="text-terminal-positive font-bold">Candle #{hoverInfo.index + 1}</div>
             <div className="text-terminal-muted">Time: <span className="text-terminal-positive">{new Date(hoverInfo.candle.OpenTime).toLocaleString()}</span></div>
             <div className="text-terminal-muted">O: <span className="text-terminal-positive">{formatNumber(hoverInfo.candle.OpenPrice, 2)}</span> H: <span className="text-terminal-positive">{formatNumber(hoverInfo.candle.HighPrice, 2)}</span></div>
             <div className="text-terminal-muted">L: <span className="text-terminal-positive">{formatNumber(hoverInfo.candle.LowPrice, 2)}</span> C: <span className="text-terminal-positive">{formatNumber(hoverInfo.candle.ClosePrice, 2)}</span></div>
@@ -651,7 +651,7 @@ export function LiveChart() {
         )}
 
         {emaEnabled && (
-          <div className="absolute left-3 bottom-3 bg-black/75 border border-terminal-positive/30 rounded px-2 py-1 text-[10px] font-mono flex items-center gap-2">
+          <div className="absolute left-3 bottom-3 bg-black/75 border border-terminal-positive/30 px-2 py-1 text-[10px] font-mono flex items-center gap-2">
             <span className="text-terminal-muted">EMA</span>
             <span style={{ color: EMA_COLORS[21] }}>21</span>
             <span style={{ color: EMA_COLORS[50] }}>50</span>
@@ -659,9 +659,9 @@ export function LiveChart() {
         )}
 
         {/* Price/Stats Overlay */}
-        <div className="absolute top-4 right-4 text-xs font-mono space-y-1">
-          <div className="bg-black/80 border border-terminal-positive/30 rounded p-2">
-            <div className="text-terminal-accent">Current Price</div>
+        <div className="absolute top-4 right-4 hidden md:block text-xs font-mono space-y-1">
+          <div className="bg-black/80 border border-terminal-positive/30 p-2">
+            <div className="text-terminal-positive">Current Price</div>
             <div className="text-terminal-positive text-lg font-bold">
               {latestCandle
                 ? formatNumber(latestCandle.ClosePrice, 2)
@@ -683,7 +683,7 @@ export function LiveChart() {
                   Low: <span className="text-terminal-positive">{formatNumber(visibleRange.low, 2)}</span>
                 </div>
                 <div>
-                  VWAP: <span className="text-terminal-accent">{formatNumber(vwap, 2)}</span>
+                  VWAP: <span className="text-terminal-positive">{formatNumber(vwap, 2)}</span>
                 </div>
               </div>
             )}

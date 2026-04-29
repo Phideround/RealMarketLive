@@ -31,10 +31,12 @@ export function SentimentGaugePanel() {
   }, [currentSymbol, currentTimeframe]);
 
   const score = data?.fearGreedScore ?? 50;
-  const stroke = useMemo(() => {
-    if (score >= 70) return "#00FF41";
-    if (score >= 45) return "#00E5FF";
-    return "#FFB100";
+  const gaugeStyle = useMemo(() => {
+    if (score >= 80) return { stroke: "#00ff41", base: "rgba(0,255,65,0.2)", label: "Extreme Greed" };
+    if (score >= 60) return { stroke: "#39d353", base: "rgba(57,211,83,0.2)", label: "Greed" };
+    if (score >= 40) return { stroke: "#9be9a8", base: "rgba(155,233,168,0.2)", label: "Neutral" };
+    if (score >= 20) return { stroke: "#ff9f43", base: "rgba(255,159,67,0.2)", label: "Fear" };
+    return { stroke: "#ff4d4d", base: "rgba(255,77,77,0.2)", label: "Extreme Fear" };
   }, [score]);
 
   const radius = 42;
@@ -45,18 +47,18 @@ export function SentimentGaugePanel() {
   return (
     <div className="flex flex-col h-full border border-terminal-positive/20 rounded bg-black/40 overflow-hidden">
       <div className="px-3 py-2 border-b border-terminal-positive/20 bg-black/70">
-        <h3 className="text-xs font-bold text-terminal-accent tracking-wider">SENTIMENT GAUGE</h3>
+        <h3 className="text-xs font-bold text-terminal-positive tracking-wider">SENTIMENT GAUGE</h3>
       </div>
 
       <div className="flex-1 p-3 grid grid-cols-[110px_1fr] gap-3 items-center">
         <div className="relative w-[100px] h-[100px] mx-auto">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-            <circle cx="50" cy="50" r={radius} stroke="rgba(255,255,255,0.12)" strokeWidth="10" fill="none" />
+            <circle cx="50" cy="50" r={radius} stroke={gaugeStyle.base} strokeWidth="10" fill="none" />
             <circle
               cx="50"
               cy="50"
               r={radius}
-              stroke={stroke}
+              stroke={gaugeStyle.stroke}
               strokeWidth="10"
               strokeLinecap="round"
               strokeDasharray={circumference}
@@ -65,15 +67,16 @@ export function SentimentGaugePanel() {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center leading-tight">
-            <div className="text-xl font-bold" style={{ color: stroke }}>{formatNumber(clampedScore, 0)}</div>
+            <div className="text-xl font-bold" style={{ color: gaugeStyle.stroke }}>{formatNumber(clampedScore, 0)}</div>
             <div className="text-[10px] text-terminal-muted">Fear/Greed</div>
+            <div className="text-[10px]" style={{ color: gaugeStyle.stroke }}>{gaugeStyle.label}</div>
           </div>
         </div>
 
         <div className="text-[11px] space-y-1 font-mono">
           <div className="text-terminal-positive font-bold">{data?.symbolCode ?? currentSymbol} · {data?.timeFrame ?? currentTimeframe}</div>
-          <div className="text-terminal-muted">Trend: <span className="text-terminal-accent">{data?.trend ?? (loading ? "Loading..." : "--")}</span></div>
-          <div className="text-terminal-muted">Sentiment: <span className="text-terminal-accent">{data?.sentiment ?? "--"}</span></div>
+          <div className="text-terminal-muted">Trend: <span className="text-terminal-positive">{data?.trend ?? (loading ? "Loading..." : "--")}</span></div>
+          <div className="text-terminal-muted">Sentiment: <span className="text-terminal-positive">{data?.sentiment ?? "--"}</span></div>
           <div className="text-terminal-muted">RSI: <span className="text-terminal-positive">{data ? formatNumber(data.rsi, 2) : "--"}</span></div>
           <div className="text-terminal-muted">MACD Hist: <span className="text-terminal-positive">{data ? formatNumber(data.macdHistogram, 6) : "--"}</span></div>
           <div className="text-terminal-muted">EMA50/100: <span className="text-terminal-positive">{data ? `${formatNumber(data.ema50, 4)} / ${formatNumber(data.ema100, 4)}` : "--"}</span></div>

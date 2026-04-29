@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 import { useMarketStore } from "@/store/market";
 import { formatNumber } from "@/lib/api";
 
+const PRIORITY_SYMBOLS = ["XAUUSD", "BTCUSD"];
+
 export function HeatmapPanel() {
   const { symbols, priceData, currentSymbol, setCurrentSymbol } = useMarketStore();
   const [showAllModal, setShowAllModal] = useState(false);
-  const PRIORITY_SYMBOLS = ["XAUUSD", "BTCUSD"];
 
   const classIcon = (marketClass: string) => {
     const key = marketClass.toLowerCase();
@@ -78,7 +79,7 @@ export function HeatmapPanel() {
       ? `rgba(0, 255, 65, ${intensity})`
       : `rgba(255, 96, 96, ${intensity})`;
     const borderColor = isActive
-      ? "#00E5FF"
+      ? "#00FF41"
       : isUp
       ? "rgba(0,255,65,0.38)"
       : "rgba(255,96,96,0.38)";
@@ -86,7 +87,7 @@ export function HeatmapPanel() {
     return {
       background,
       borderColor,
-      boxShadow: isActive ? "0 0 0 1px #00E5FF inset" : undefined,
+      boxShadow: isActive ? "0 0 0 1px #00FF41 inset" : undefined,
     };
   };
 
@@ -97,7 +98,7 @@ export function HeatmapPanel() {
           <h3 className="text-xs font-bold text-terminal-accent tracking-wider">MARKET HEATMAP (24H)</h3>
           <button
             onClick={() => setShowAllModal(true)}
-            className="text-[10px] px-2 py-1 rounded border border-terminal-accent/40 text-terminal-accent hover:bg-terminal-accent/10"
+            className="text-[10px] px-2 py-1 border border-terminal-positive/40 text-terminal-positive hover:bg-terminal-positive/10"
             title="Open full heatmap view"
           >
             ▦ All
@@ -133,10 +134,10 @@ export function HeatmapPanel() {
                   D1: <span className={cell.daily >= 0 ? "text-terminal-positive" : "text-red-400"}>{cell.hasData ? `${cell.daily >= 0 ? "+" : ""}${formatNumber(cell.daily, 2)}%` : "--"}</span>
                 </div>
                 <div>
-                  B: <span className="text-terminal-accent">{cell.hasData ? formatNumber(cell.bid, 2) : "--"}</span>
+                  B: <span className="text-terminal-positive">{cell.hasData ? formatNumber(cell.bid, 2) : "--"}</span>
                 </div>
                 <div>
-                  A: <span className="text-terminal-accent">{cell.hasData ? formatNumber(cell.ask, 2) : "--"}</span>
+                  A: <span className="text-terminal-positive">{cell.hasData ? formatNumber(cell.ask, 2) : "--"}</span>
                 </div>
               </div>
 
@@ -149,7 +150,7 @@ export function HeatmapPanel() {
                   cell.trend.map((v, i) => (
                     <span
                       key={`${cell.symbol}-trend-${i}`}
-                      className="flex-1 bg-terminal-accent/70"
+                      className="flex-1 bg-terminal-positive/70"
                       style={{ height: `${Math.max(15, (v / trendMax) * 100)}%` }}
                     />
                   ))
@@ -163,7 +164,7 @@ export function HeatmapPanel() {
       </div>
 
       {showAllModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-[1px] p-6" onClick={() => setShowAllModal(false)}>
+        <div className="fixed inset-0 z-50 bg-black/85 p-6" onClick={() => setShowAllModal(false)}>
           <div
             className="h-full w-full rounded border border-terminal-positive/30 bg-black/95 flex flex-col"
             onClick={(e) => e.stopPropagation()}
@@ -172,7 +173,7 @@ export function HeatmapPanel() {
               <h3 className="text-sm font-bold text-terminal-accent tracking-wider">FULL MARKET HEATMAP (24H)</h3>
               <button
                 onClick={() => setShowAllModal(false)}
-                className="text-xs px-3 py-1 border border-terminal-accent/40 rounded text-terminal-accent hover:bg-terminal-accent/10"
+                className="text-xs px-3 py-1 border border-terminal-positive/40 text-terminal-positive hover:bg-terminal-positive/10"
               >
                 Close
               </button>

@@ -31,9 +31,8 @@ export function SystemLogPanel() {
 
   return (
     <div className="flex flex-col h-full bg-black/50">
-      {/* Header */}
-      <div className="sticky top-0 bg-black/80 border-b border-terminal-positive/30 px-4 py-2 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-terminal-accent">System Logs</h3>
+      {/* Actions */}
+      <div className="sticky top-0 bg-black/80 border-b border-terminal-positive/30 px-4 py-2 flex items-center justify-end">
         <button
           onClick={() => clearLogs()}
           className="text-xs px-2 py-1 border border-terminal-positive/30 rounded hover:border-terminal-positive/50 text-terminal-muted hover:text-terminal-positive transition-all"
@@ -46,9 +45,7 @@ export function SystemLogPanel() {
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto font-mono text-xs space-y-0"
-        style={{
-          background: "linear-gradient(to bottom, rgba(0, 255, 0, 0.02), rgba(0, 0, 0, 0.1))",
-        }}
+        style={{ background: "rgba(0, 0, 0, 0.45)" }}
       >
         {logs.length === 0 ? (
           <div className="p-3 text-terminal-muted text-center">
