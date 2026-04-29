@@ -9,6 +9,7 @@ export function SignalPanel() {
   const { currentSymbol, symbols, setCurrentSymbol } = useMarketStore();
   const { signals } = useSignalsStore();
   const [showAnomalyDetails, setShowAnomalyDetails] = useState(false);
+  const [showStopHuntDetails, setShowStopHuntDetails] = useState(false);
   const [cooldownNow, setCooldownNow] = useState(() => Date.now());
 
   const displaySignals = useMemo(
@@ -27,9 +28,28 @@ export function SignalPanel() {
       ),
     [currentSignal?.anomaly?.anomalies]
   );
+  const visibleStopHuntZones = useMemo(
+    () =>
+      [...(currentSignal?.stopHunt?.zones ?? [])].sort((left, right) => {
+        const rightTime = Date.parse(right.huntedAt ?? right.price.toString());
+        const leftTime = Date.parse(left.huntedAt ?? left.price.toString());
+
+        if (Number.isFinite(rightTime) && Number.isFinite(leftTime)) {
+          return rightTime - leftTime;
+        }
+
+        if (left.recentlyHunted !== right.recentlyHunted) {
+          return Number(right.recentlyHunted) - Number(left.recentlyHunted);
+        }
+
+        return right.price - left.price;
+      }),
+    [currentSignal?.stopHunt?.zones]
+  );
 
   useEffect(() => {
     setShowAnomalyDetails(false);
+    setShowStopHuntDetails(false);
   }, [currentSymbol]);
 
   useEffect(() => {
@@ -60,7 +80,7 @@ export function SignalPanel() {
         : "text-terminal-accent";
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded bg-black/40 border border-terminal-positive/20">
+    <div className="relative flex h-full flex-col overflow-hidden rounded bg-black/40 border border-terminal-positive/20">
       <div className="sticky top-0 z-10 border-b border-terminal-positive/20 bg-black/70 px-3 py-2">
         <div className="text-xs font-bold tracking-wider text-terminal-accent">MARKET SIGNALS</div>
         <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-terminal-muted">Focused Decision Stack</div>
@@ -156,7 +176,28 @@ export function SignalPanel() {
 
               {currentSignal.stopHunt && (
                 <div className="rounded border border-terminal-positive/20 bg-black/50 p-2">
-                  <div className="font-bold text-terminal-accent">Stop Hunt</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-bold text-terminal-accent">Stop Hunt</div>
+                    {visibleStopHuntZones.length > 0 ? (
+                      <button
+                        onClick={() => setShowStopHuntDetails((prev) => !prev)}
+                        className="inline-flex h-7 w-7 items-center justify-center border border-terminal-positive/25 bg-black/60 text-terminal-positive transition-all hover:border-terminal-positive hover:bg-terminal-positive/10"
+                        title={showStopHuntDetails ? "Hide stop hunt details" : "Show stop hunt details"}
+                        aria-label={showStopHuntDetails ? "Hide stop hunt details" : "Show stop hunt details"}
+                      >
+                        {showStopHuntDetails ? (
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <path d="M6 15l6-6 6 6" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <path d="M12 5v14" />
+                            <path d="M5 12h14" />
+                          </svg>
+                        )}
+                      </button>
+                    ) : null}
+                  </div>
                   <div className="mt-1 text-terminal-muted">Current {formatNumber(currentSignal.stopHunt.currentPrice, 2)}</div>
                 </div>
               )}
@@ -254,28 +295,29 @@ export function SignalPanel() {
 
       {showAnomalyDetails && visibleAnomalies.length > 0 ? (
         <div
-          className="absolute inset-0 z-30 flex items-center justify-center bg-black/75 p-3 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-3 backdrop-blur-[2px]"
           onClick={() => setShowAnomalyDetails(false)}
         >
           <div
             className="max-h-[80vh] w-full max-w-md overflow-hidden rounded border border-terminal-positive/35 bg-[#040404] shadow-[0_0_24px_rgba(0,255,65,0.14)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-terminal-positive/20 bg-black/80 px-3 py-2">
+            <div className="relative border-b border-terminal-positive/20 bg-black/90 px-3 py-2 pr-24">
               <div>
                 <div className="text-xs font-bold tracking-[0.18em] text-terminal-accent">ANOMALY DETAILS</div>
                 <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-terminal-muted">{currentSymbol} · {visibleAnomalies.length} events</div>
               </div>
               <button
                 onClick={() => setShowAnomalyDetails(false)}
-                className="inline-flex h-8 w-8 items-center justify-center border border-terminal-positive/25 bg-black/60 text-terminal-positive transition-all hover:border-terminal-positive hover:bg-terminal-positive/10"
+                className="absolute right-2 top-2 inline-flex items-center gap-1.5 rounded border border-red-400/80 bg-red-500/20 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-red-200 shadow-[0_0_12px_rgba(248,113,113,0.35)] transition-all hover:border-red-300 hover:bg-red-500/30"
                 title="Close anomaly popup"
                 aria-label="Close anomaly popup"
               >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M6 6l12 12" />
                   <path d="M18 6L6 18" />
                 </svg>
+                <span>Close</span>
               </button>
             </div>
 
@@ -298,6 +340,59 @@ export function SignalPanel() {
           </div>
         </div>
       ) : null}
+
+      {showStopHuntDetails && visibleStopHuntZones.length > 0 ? (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-3 backdrop-blur-[2px]"
+          onClick={() => setShowStopHuntDetails(false)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-md overflow-hidden rounded border border-terminal-positive/35 bg-[#040404] shadow-[0_0_24px_rgba(0,255,65,0.14)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="relative border-b border-terminal-positive/20 bg-black/90 px-3 py-2 pr-24">
+              <div>
+                <div className="text-xs font-bold tracking-[0.18em] text-terminal-accent">STOP HUNT DETAILS</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-terminal-muted">{currentSymbol} · {visibleStopHuntZones.length} zones</div>
+              </div>
+              <button
+                onClick={() => setShowStopHuntDetails(false)}
+                className="absolute right-2 top-2 inline-flex items-center gap-1.5 rounded border border-red-400/80 bg-red-500/20 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-red-200 shadow-[0_0_12px_rgba(248,113,113,0.35)] transition-all hover:border-red-300 hover:bg-red-500/30"
+                title="Close stop hunt popup"
+                aria-label="Close stop hunt popup"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M6 6l12 12" />
+                  <path d="M18 6L6 18" />
+                </svg>
+                <span>Close</span>
+              </button>
+            </div>
+
+            <div className="max-h-[calc(80vh-4rem)] overflow-y-auto px-3 py-3 text-[10px]">
+              <div className="mb-2 rounded border border-terminal-positive/10 bg-black/35 px-2.5 py-2 text-terminal-muted">
+                Current Price <span className="text-terminal-positive">{formatNumber(currentSignal.stopHunt?.currentPrice ?? 0, 2)}</span>
+              </div>
+              <div className="space-y-2">
+                {visibleStopHuntZones.map((zone, index) => (
+                  <div key={`${zone.price}-${zone.type}-${index}`} className="rounded border border-terminal-positive/10 bg-black/35 p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`font-bold ${zone.type.toLowerCase().includes("sell") ? "text-red-400" : "text-terminal-positive"}`}>{zone.type}</span>
+                      <span className="text-terminal-muted">{formatNumber(zone.price, 2)}</span>
+                    </div>
+                    <div className="mt-1 text-terminal-muted/90">{zone.description}</div>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-terminal-muted">
+                      <span>Status: <span className={zone.recentlyHunted ? "text-red-400" : "text-terminal-positive"}>{zone.recentlyHunted ? "Hunted" : "Watching"}</span></span>
+                      {zone.huntedAt ? <span>{formatDate(zone.huntedAt)} {formatTime(zone.huntedAt)}</span> : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
     </div>
   );
 }

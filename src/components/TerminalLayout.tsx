@@ -94,18 +94,18 @@ export function TerminalLayout() {
   }, []);
 
   return (
-    <div className="flex flex-col w-screen h-screen bg-terminal-bg overflow-hidden">
+    <div className="flex flex-col w-screen h-screen bg-terminal-bg overflow-hidden hud-fade-in">
       {/* Header */}
       <Header />
 
       {/* Main Content Grid */}
       <div className="flex-1 overflow-y-auto px-3 pb-3 lg:overflow-hidden">
         <div className="flex min-h-full flex-col gap-3 lg:grid lg:h-full lg:grid-cols-[23rem_minmax(0,1.4fr)_29rem]">
-          <div className={`${PANEL_FRAME} hidden lg:block`}>
+          <div className={`${PANEL_FRAME} panel-energized surface-glow hidden lg:block`}>
             <SignalPanel />
           </div>
 
-          <div className={`${PANEL_FRAME} flex min-w-0 flex-col min-h-[24rem] lg:min-h-0`}>
+          <div className={`${PANEL_FRAME} panel-energized surface-glow flex min-w-0 flex-col min-h-[24rem] lg:min-h-0`}>
             <div className="hud-fade-in flex items-center justify-between border-b border-terminal-positive/25 bg-black px-4 py-3">
               <div>
                 <div className="text-[11px] uppercase tracking-[0.24em] text-terminal-muted">Focus Market</div>
@@ -139,24 +139,24 @@ export function TerminalLayout() {
               </div>
             </div>
             <div className="min-h-0 flex-1 p-2">
-              <div className="h-full overflow-hidden rounded-none border border-terminal-positive/20 bg-black panel-energized">
+              <div className="h-full overflow-hidden rounded-none border border-terminal-positive/20 bg-black surface-glow">
                 <LiveChart />
               </div>
             </div>
           </div>
 
           <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-1 lg:grid-rows-[1.08fr_1fr_1fr] lg:overflow-hidden">
-            <div className={PANEL_FRAME}>
+            <div className={`${PANEL_FRAME} panel-energized surface-glow`}>
               <HeatmapPanel />
             </div>
-            <div className={PANEL_FRAME}>
+            <div className={`${PANEL_FRAME} panel-energized surface-glow`}>
               <NewsFeedPanel />
             </div>
             <div className="grid grid-cols-1 gap-3 min-h-0 md:grid-cols-2">
-              <div className={PANEL_FRAME}>
+              <div className={`${PANEL_FRAME} panel-energized surface-glow`}>
                 <SentimentGaugePanel />
               </div>
-              <div className={PANEL_FRAME}>
+              <div className={`${PANEL_FRAME} panel-energized surface-glow`}>
                 <TopMoversPanel compact />
               </div>
             </div>
@@ -188,7 +188,7 @@ export function TerminalLayout() {
           textShadow: "0 0 6px rgba(0, 255, 65, 0.14)",
         }}
       >
-        <div className="border border-terminal-positive/25 bg-black px-3 py-2 text-xs text-terminal-muted">
+        <div className="border border-terminal-positive/25 bg-black px-3 py-2 text-xs text-terminal-muted surface-glow float-soft">
           <div className="mb-1 uppercase tracking-[0.2em] text-[10px] text-terminal-muted/80">Shortcuts</div>
           <div>1-6: Timeframe</div>
           <div>S: Next Symbol</div>

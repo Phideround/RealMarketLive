@@ -55,13 +55,13 @@ export function Header() {
   }[apiHealth];
 
   return (
-    <header className="bg-black border-b border-terminal-positive/30 px-3 py-3 font-mono md:px-4">
+    <header className="header-glow bg-black border-b border-terminal-positive/30 px-3 py-3 font-mono md:px-4">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         {/* Left: Title */}
         <div className="flex items-center gap-4 lg:gap-8">
           <button
             onClick={() => window.location.reload()}
-            className="text-2xl font-bold text-terminal-positive hover:text-terminal-positive/90 transition-colors cursor-pointer"
+            className="smooth-interactive text-2xl font-bold text-terminal-positive hover:text-terminal-positive/90 transition-colors cursor-pointer"
             title="Refresh application"
           >
             ▲ RealMarketLive
@@ -108,7 +108,7 @@ export function Header() {
               href="https://t.me/RealMarketAPISaasBot"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-6 w-6 items-center justify-center border border-terminal-positive/40 text-terminal-positive hover:bg-terminal-positive/10"
+              className="smooth-interactive inline-flex h-6 w-6 items-center justify-center border border-terminal-positive/40 text-terminal-positive hover:bg-terminal-positive/10"
               title="Open Telegram bot"
               aria-label="Open Telegram bot"
             >

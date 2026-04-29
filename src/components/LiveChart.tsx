@@ -20,13 +20,23 @@ const BOLLINGER_COLORS = {
   middle: "rgba(90, 190, 255, 0.9)",
   lower: "rgba(255, 120, 190, 0.9)",
 };
-type CursorMode = "cursor" | "crosshair";
+type CursorMode = "cursor" | "crosshair" | "sniper";
 
 interface HoverInfo {
   index: number;
   x: number;
   y: number;
   candle: Candle;
+}
+
+interface ShotFx {
+  id: number;
+  originX: number;
+  originY: number;
+  targetX: number;
+  targetY: number;
+  distance: number;
+  angle: number;
 }
 
 export function LiveChart() {
@@ -45,6 +55,8 @@ export function LiveChart() {
   });
   const [bollingerEnabled, setBollingerEnabled] = useState(true);
   const [bollingerSeries, setBollingerSeries] = useState<BollingerBandPoint[]>([]);
+  const [shotFx, setShotFx] = useState<ShotFx | null>(null);
+  const shotTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
   const candleList = useMemo(
@@ -559,6 +571,14 @@ export function LiveChart() {
     return () => container.removeEventListener("wheel", onWheel);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (shotTimeoutRef.current) {
+        clearTimeout(shotTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const getChartGeometry = () => {
     const width = chartSize.width;
     const height = chartSize.height;
@@ -597,8 +617,51 @@ export function LiveChart() {
 
   const onChartMouseLeave = () => setHoverInfo(null);
 
+  const fireSniperShot = (targetX?: number, targetY?: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+
+    const originX = rect.width - 22;
+    const originY = 20;
+    const resolvedTargetX =
+      targetX != null
+        ? Math.max(12, Math.min(rect.width - 12, targetX))
+        : rect.width * (0.18 + Math.random() * 0.62);
+    const resolvedTargetY =
+      targetY != null
+        ? Math.max(12, Math.min(rect.height - 12, targetY))
+        : rect.height * (0.2 + Math.random() * 0.58);
+    const deltaX = resolvedTargetX - originX;
+    const deltaY = resolvedTargetY - originY;
+    const distance = Math.hypot(deltaX, deltaY);
+    const angle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI;
+
+    setShotFx({
+      id: Date.now(),
+      originX,
+      originY,
+      targetX: resolvedTargetX,
+      targetY: resolvedTargetY,
+      distance,
+      angle,
+    });
+
+    if (shotTimeoutRef.current) {
+      clearTimeout(shotTimeoutRef.current);
+    }
+    shotTimeoutRef.current = setTimeout(() => setShotFx(null), 850);
+  };
+
+  const onChartClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (cursorMode !== "sniper" || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    fireSniperShot(x, y);
+  };
+
   return (
-    <div className="panel-energized grid h-full grid-rows-[auto_minmax(0,1fr)_88px_auto] border border-terminal-positive/20 rounded bg-black/40 overflow-hidden flex-1 hud-fade-in">
+    <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_88px_auto] border border-terminal-positive/20 rounded bg-black/40 overflow-hidden flex-1 hud-fade-in surface-glow">
       {/* Header */}
       <div className="shrink-0 flex flex-col gap-2 px-3 py-2 border-b border-terminal-positive/20 bg-black/70 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 flex-col gap-2">
@@ -695,6 +758,20 @@ export function LiveChart() {
             </svg>
           </button>
           <button
+            onClick={() => setCursorMode("sniper")}
+            className={`sniper-button px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono border transition-all ${
+              cursorMode === "sniper"
+                ? "border-terminal-positive text-terminal-positive bg-terminal-positive/10"
+                : "border-terminal-positive/30 text-terminal-muted hover:border-terminal-positive/50"
+            }`}
+            title="Sniper mode"
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+            </svg>
+          </button>
+          <button
             onClick={() => setEmaEnabled((prev) => !prev)}
             className={`px-1.5 py-1 text-[11px] sm:px-2 sm:text-xs font-mono border transition-all ${
               emaEnabled
@@ -740,10 +817,33 @@ export function LiveChart() {
       {/* Chart Canvas */}
       <div
         ref={containerRef}
-        className="min-h-0 relative bg-black"
+        className={`min-h-0 relative bg-black ${cursorMode === "sniper" ? "cursor-crosshair" : ""}`}
         onMouseMove={onChartMouseMove}
         onMouseLeave={onChartMouseLeave}
+        onClick={onChartClick}
       >
+        {shotFx ? (
+          <div key={shotFx.id} className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+            <span
+              className="sniper-muzzle-flash"
+              style={{ left: shotFx.originX - 6, top: shotFx.originY - 6 }}
+            />
+            <span
+              className="sniper-tracer"
+              style={{
+                left: shotFx.originX,
+                top: shotFx.originY,
+                width: `${shotFx.distance}px`,
+                ["--shot-angle" as const]: `${shotFx.angle}deg`,
+              } as React.CSSProperties}
+            />
+            <span
+              className="sniper-impact"
+              style={{ left: shotFx.targetX, top: shotFx.targetY }}
+            />
+          </div>
+        ) : null}
+
         <canvas
           className="w-full h-full"
           style={{ imageRendering: "auto" }}

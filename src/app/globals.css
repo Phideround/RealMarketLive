@@ -11,6 +11,9 @@
   --terminal-panel-2: #0a0a0a;
   --terminal-line: rgba(0, 255, 65, 0.18);
   --terminal-grid: rgba(0, 255, 65, 0.04);
+  --terminal-glow-soft: 0 0 24px rgba(0, 255, 65, 0.08);
+  --terminal-glow-mid: 0 0 42px rgba(0, 255, 65, 0.12);
+  --terminal-glow-strong: 0 0 64px rgba(0, 255, 65, 0.18);
 }
 
 * {
@@ -23,7 +26,10 @@ html,
 body {
   width: 100%;
   height: 100%;
-  background: #000000;
+  background:
+    radial-gradient(circle at top center, rgba(0, 255, 65, 0.08), transparent 32%),
+    radial-gradient(circle at 85% 18%, rgba(0, 255, 65, 0.05), transparent 24%),
+    linear-gradient(180deg, #010301 0%, #000000 45%, #010201 100%);
   color: #00FF41;
   font-family: "JetBrains Mono", monospace;
   overflow: hidden;
@@ -38,14 +44,18 @@ body::after {
 }
 
 body::before {
-  background-color: transparent;
-  box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.08);
+  background:
+    linear-gradient(rgba(0, 255, 65, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 65, 0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.08), inset 0 0 80px rgba(0, 255, 65, 0.04);
   opacity: 0.4;
 }
 
 body::after {
-  background: transparent;
-  opacity: 0;
+  background: radial-gradient(circle at center, rgba(0, 255, 65, 0.06), transparent 58%);
+  opacity: 0.5;
+  animation: ambient-breathe 8s ease-in-out infinite;
 }
 
 ::-webkit-scrollbar {
@@ -94,17 +104,68 @@ textarea:focus {
 button {
   font-family: "JetBrains Mono", monospace;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1), border-color 220ms ease, background-color 220ms ease, color 220ms ease, opacity 220ms ease;
+}
+
+button:hover {
+  box-shadow: 0 0 16px rgba(0, 255, 65, 0.12);
+}
+
+button:active {
+  transform: translateY(1px) scale(0.992);
+}
+
+a,
+.smooth-interactive {
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1), border-color 220ms ease, color 220ms ease, background-color 220ms ease, opacity 220ms ease;
+}
+
+.smooth-interactive:hover {
+  transform: translateY(-1px);
+}
+
+@keyframes ambient-breathe {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.52;
+    transform: scale(1.03);
+  }
 }
 
 @keyframes hud-fade-in {
   0% {
     opacity: 0;
-    transform: translateY(10px) scale(0.995);
+    transform: translateY(14px) scale(0.985);
   }
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes soft-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes edge-shimmer {
+  0% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.42;
+  }
+  100% {
+    opacity: 0.18;
   }
 }
 
@@ -148,12 +209,18 @@ button {
 }
 
 .hud-fade-in {
-  animation: hud-fade-in 420ms ease-out both;
+  animation: hud-fade-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .panel-energized {
   position: relative;
   overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.06), var(--terminal-glow-soft);
+  transition: box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1), border-color 260ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.panel-energized:hover {
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.11), var(--terminal-glow-mid);
 }
 
 .panel-energized::after {
@@ -166,12 +233,139 @@ button {
   pointer-events: none;
 }
 
+.panel-energized::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(0, 255, 65, 0.06);
+  box-shadow: inset 0 0 18px rgba(0, 255, 65, 0.05);
+  animation: edge-shimmer 5.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.header-glow {
+  position: relative;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45), 0 0 30px rgba(0, 255, 65, 0.08);
+}
+
+.header-glow::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.85), transparent);
+  animation: edge-shimmer 4.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.surface-glow {
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.05), 0 0 0 1px rgba(0, 255, 65, 0.03), var(--terminal-glow-soft);
+}
+
+.float-soft {
+  animation: soft-float 4.6s ease-in-out infinite;
+}
+
 .flow-pulse {
   animation: flow-pulse 2.4s ease-in-out infinite;
 }
 
 .flow-meter-rise {
   animation: flow-meter-rise 1.8s ease-in-out infinite;
+}
+
+@keyframes sniper-button-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(0, 255, 65, 0);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(0, 255, 65, 0.3);
+  }
+}
+
+@keyframes sniper-tracer-fire {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--shot-angle)) scaleX(0.03);
+  }
+  20% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+    transform: rotate(var(--shot-angle)) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--shot-angle)) scaleX(1);
+  }
+}
+
+@keyframes sniper-impact-ping {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+}
+
+@keyframes muzzle-flash {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  25% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2);
+  }
+}
+
+.sniper-button {
+  animation: sniper-button-pulse 2.2s ease-in-out infinite;
+}
+
+.sniper-tracer {
+  position: absolute;
+  display: block;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), rgba(0, 255, 65, 0.9));
+  transform-origin: left center;
+  transform: rotate(var(--shot-angle)) scaleX(0.03);
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.42);
+  animation: sniper-tracer-fire 520ms ease-out forwards;
+}
+
+.sniper-impact {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 2px solid rgba(0, 255, 65, 0.9);
+  box-shadow: 0 0 16px rgba(0, 255, 65, 0.35);
+  animation: sniper-impact-ping 520ms ease-out forwards;
+}
+
+.sniper-muzzle-flash {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(0, 255, 65, 0.45), transparent 72%);
+  animation: muzzle-flash 340ms ease-out forwards;
 }
 
 @keyframes ticker-left {
@@ -194,6 +388,15 @@ button {
   animation-play-state: paused;
 }
 
+.ticker-track > span {
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), filter 220ms ease;
+}
+
+.ticker-track > span:hover {
+  transform: translateY(-1px);
+  filter: drop-shadow(0 0 10px rgba(0, 255, 65, 0.2));
+}
+
 @media (max-width: 768px) {
   .ticker-track {
     animation-duration: 80s;
@@ -210,6 +413,17 @@ button {
   }
 
   .panel-energized::after {
+    animation: none !important;
+  }
+
+  .panel-energized::before,
+  .header-glow::after,
+  body::after,
+  .float-soft,
+  .sniper-button,
+  .sniper-tracer,
+  .sniper-impact,
+  .sniper-muzzle-flash {
     animation: none !important;
   }
 }
