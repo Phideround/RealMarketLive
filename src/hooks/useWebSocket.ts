@@ -40,6 +40,7 @@ export function useWebSocket(config: WebSocketConfig | null) {
   const {
     updatePrice,
     updateCandles,
+    addTick,
   } = useMarketStore();
   const { setWsConnected, addLog, setLatency } = useConnectionStore();
   const { updateTickFrequency } = useConnectionStore();
@@ -265,8 +266,16 @@ export function useWebSocket(config: WebSocketConfig | null) {
             const priceData = data as PriceData;
             updatePrice(config.symbol, priceData);
 
+            const change = ((priceData.ClosePrice - priceData.OpenPrice) / (priceData.OpenPrice || 1)) * 100;
+            addTick({
+              symbol: config.symbol,
+              price: priceData.ClosePrice,
+              change,
+              direction: change >= 0 ? "up" : "down",
+              timestamp: new Date().toISOString(),
+            });
+
             // Set heat intensity based on price change
-            const change = ((priceData.ClosePrice - priceData.OpenPrice) / priceData.OpenPrice) * 100;
             const intensity = Math.min(Math.abs(change) / 2, 1);
             setHeatIntensity(config.symbol, intensity);
           } else if (config.type === "candles" && Array.isArray(data)) {
@@ -337,7 +346,7 @@ export function useWebSocket(config: WebSocketConfig | null) {
         message: `✗ Failed to connect to ${config.symbol}`,
       });
     }
-  }, [config, updatePrice, updateCandles, setWsConnected, addLog, setLatency, updateTickFrequency, setHeatIntensity, refreshIntegratedSignal]);
+  }, [config, updatePrice, updateCandles, addTick, setWsConnected, addLog, setLatency, updateTickFrequency, setHeatIntensity, refreshIntegratedSignal]);
 
   useEffect(() => {
     connect();

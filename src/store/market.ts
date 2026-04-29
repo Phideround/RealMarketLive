@@ -32,6 +32,14 @@ export interface Candle {
   OpenTime: string;
 }
 
+export interface TickEntry {
+  symbol: string;
+  price: number;
+  change: number;
+  direction: "up" | "down";
+  timestamp: string;
+}
+
 interface MarketStore {
   // Current symbol
   currentSymbol: string;
@@ -52,6 +60,10 @@ interface MarketStore {
   // Timeframe
   currentTimeframe: string;
   setCurrentTimeframe: (timeframe: string) => void;
+
+  // Tick stream
+  tickHistory: TickEntry[];
+  addTick: (tick: TickEntry) => void;
 }
 
 export const useMarketStore = create<MarketStore>((set) => ({
@@ -75,4 +87,10 @@ export const useMarketStore = create<MarketStore>((set) => ({
 
   currentTimeframe: "H1",
   setCurrentTimeframe: (timeframe: string) => set({ currentTimeframe: timeframe }),
+
+  tickHistory: [],
+  addTick: (tick: TickEntry) =>
+    set((state) => ({
+      tickHistory: [tick, ...state.tickHistory].slice(0, 300),
+    })),
 }));

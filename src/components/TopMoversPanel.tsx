@@ -4,7 +4,11 @@ import { useMemo } from "react";
 import { useMarketStore } from "@/store/market";
 import { formatNumber } from "@/lib/api";
 
-export function TopMoversPanel() {
+interface TopMoversPanelProps {
+  compact?: boolean;
+}
+
+export function TopMoversPanel({ compact = false }: TopMoversPanelProps) {
   const { symbols, priceData, setCurrentSymbol } = useMarketStore();
 
   const movers = useMemo(() => {
@@ -31,23 +35,23 @@ export function TopMoversPanel() {
   }, [symbols, priceData]);
 
   return (
-    <div className="h-full border border-terminal-positive/25 bg-black p-3 font-mono">
+    <div className={`h-full border border-terminal-positive/25 bg-black font-mono ${compact ? "p-2" : "p-3"}`}>
       <div className="text-[11px] uppercase tracking-[0.2em] text-terminal-muted">Top Movers 24H</div>
-      <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+      <div className={`mt-2 grid gap-1 ${compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"}`}>
         {movers.map((mover) => {
           const up = mover.change24h >= 0;
           return (
             <button
               key={mover.symbol}
               onClick={() => setCurrentSymbol(mover.symbol)}
-              className="flex items-center justify-between border border-terminal-positive/20 px-2 py-1 text-left hover:border-terminal-positive/50"
+              className={`flex items-center justify-between border border-terminal-positive/20 text-left hover:border-terminal-positive/50 ${compact ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-1"}`}
               title="Set as focus market"
             >
               <span className={`font-bold ${up ? "text-terminal-positive" : "text-terminal-negative"}`}>
                 {up ? "▲" : "▼"} {mover.symbol}
               </span>
               <span className="text-terminal-muted">
-                {formatNumber(mover.close, 2)} |{" "}
+                {compact ? `${formatNumber(mover.close, 2)} ` : `${formatNumber(mover.close, 2)} | `}
                 <span className={up ? "text-terminal-positive" : "text-terminal-negative"}>
                   {up ? "+" : ""}
                   {formatNumber(mover.change24h, 2)}%

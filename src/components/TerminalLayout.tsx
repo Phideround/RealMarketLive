@@ -12,7 +12,6 @@ import { SignalPanel } from "./SignalPanel";
 import { HeatmapPanel } from "./HeatmapPanel";
 import { NewsFeedPanel } from "./NewsFeedPanel";
 import { SentimentGaugePanel } from "./SentimentGaugePanel";
-import { LatencyCoachPanel } from "./LatencyCoachPanel";
 import { TopMoversPanel } from "./TopMoversPanel";
 
 const PANEL_FRAME = "overflow-hidden rounded-none border border-terminal-positive/25 bg-black";
@@ -73,10 +72,6 @@ export function TerminalLayout() {
       if (key.toLowerCase() === "l") {
         e.preventDefault();
         setActiveBottomTab("logs");
-      }
-      if (key.toLowerCase() === "t") {
-        e.preventDefault();
-        setActiveBottomTab("stats");
       }
     };
 
@@ -145,7 +140,7 @@ export function TerminalLayout() {
             </div>
           </div>
 
-          <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-1 lg:grid-rows-[1.1fr_1fr_0.92fr] lg:overflow-hidden">
+          <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-1 lg:grid-rows-[1.1fr_1fr_0.92fr_0.55fr] lg:overflow-hidden">
             <div className={PANEL_FRAME}>
               <HeatmapPanel />
             </div>
@@ -155,15 +150,10 @@ export function TerminalLayout() {
             <div className={PANEL_FRAME}>
               <SentimentGaugePanel />
             </div>
+            <div className={PANEL_FRAME}>
+              <TopMoversPanel compact />
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Bottom: Command/Diagnostics Panel */}
-      <div className="px-3 pb-3">
-        <div className="grid h-44 grid-cols-1 gap-3 lg:h-28 lg:grid-cols-2">
-          <LatencyCoachPanel />
-          <TopMoversPanel />
         </div>
       </div>
 
