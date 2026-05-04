@@ -13,6 +13,7 @@ import { HeatmapPanel } from "./HeatmapPanel";
 import { NewsFeedPanel } from "./NewsFeedPanel";
 import { SentimentGaugePanel } from "./SentimentGaugePanel";
 import { TopMoversPanel } from "./TopMoversPanel";
+import { DOMTraderPanel } from "./DOMTraderPanel";
 
 const PANEL_FRAME = "overflow-hidden rounded-none border border-terminal-positive/25 bg-black";
 
@@ -138,9 +139,15 @@ export function TerminalLayout() {
                 </button>
               </div>
             </div>
-            <div className="min-h-0 flex-1 p-2">
-              <div className="h-full overflow-hidden rounded-none border border-terminal-positive/20 bg-black surface-glow">
-                <LiveChart />
+            {/* Chart + DOM Ladder side by side */}
+            <div className="min-h-0 flex-1 flex overflow-hidden">
+              <div className="min-w-0 flex-1 p-2">
+                <div className="h-full overflow-hidden rounded-none border border-terminal-positive/20 bg-black surface-glow">
+                  <LiveChart />
+                </div>
+              </div>
+              <div className="w-[168px] shrink-0 border-l border-terminal-positive/20 overflow-hidden">
+                <DOMTraderPanel symbol={currentSymbol} />
               </div>
             </div>
           </div>
